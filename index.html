@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Embarazo Doctor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-heartbeat me-2"></i>
+                Monitor Embarazo Doctor
+            </a>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <div class="container mt-4">
+        <!-- Navegación entre módulos -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pacientes-tab" data-bs-toggle="tab" 
+                        data-bs-target="#pacientes" type="button" role="tab">
+                    <i class="fas fa-users me-1"></i> Gestión de Pacientes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="registros-tab" data-bs-toggle="tab" 
+                        data-bs-target="#registros" type="button" role="tab">
+                    <i class="fas fa-file-medical me-1"></i> Registros Diarios
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="graficos-tab" data-bs-toggle="tab" 
+                        data-bs-target="#graficos" type="button" role="tab">
+                    <i class="fas fa-chart-line me-1"></i> Análisis y Gráficos
+                </button>
+            </li>
+        </ul>
+
+        <!-- Contenido de los módulos -->
+        <div class="tab-content mt-3" id="mainTabsContent">
+            
+            <!-- Módulo de Gestión de Pacientes -->
+            <div class="tab-pane fade show active" id="pacientes" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user-plus me-2"></i>Gestión de Pacientes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Formulario para crear paciente -->
+                        <form id="formPaciente" class="mb-4">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="nombre" class="form-label">Nombre completo</label>
+                                        <input type="text" class="form-control" id="nombre" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="edad" class="form-label">Edad</label>
+                                        <input type="number" class="form-control" id="edad" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="telefono" class="form-label">Teléfono</label>
+                                        <input type="tel" class="form-control" id="telefono" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save me-1"></i>Guardar Paciente
+                            </button>
+                        </form>
+
+                        <!-- Lista de pacientes -->
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tablaPacientes">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Email</th>
+                                        <th>Edad</th>
+                                        <th>Teléfono</th>
+                                        <th>Fecha Registro</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaPacientes">
+                                    <!-- Los pacientes se cargarán aquí -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Módulo de Registros Diarios -->
+            <div class="tab-pane fade" id="registros" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-medical me-2"></i>Registros de Presión Arterial
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filtros -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="filtroPaciente" class="form-label">Paciente</label>
+                                <select class="form-select" id="filtroPaciente">
+                                    <option value="">Todos los pacientes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="filtroFechaInicio" class="form-label">Fecha inicio</label>
+                                <input type="date" class="form-control" id="filtroFechaInicio">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="filtroFechaFin" class="form-label">Fecha fin</label>
+                                <input type="date" class="form-control" id="filtroFechaFin">
+                            </div>
+                        </div>
+
+                        <!-- Formulario para nuevo registro -->
+                        <form id="formRegistro" class="mb-4 border p-3 rounded">
+                            <h6 class="mb-3">Nuevo Registro</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="pacienteRegistro" class="form-label">Paciente</label>
+                                        <select class="form-select" id="pacienteRegistro" required>
+                                            <option value="">Seleccionar paciente</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="fechaRegistro" class="form-label">Fecha</label>
+                                        <input type="date" class="form-control" id="fechaRegistro" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="sistolica" class="form-label">Sistólica</label>
+                                        <input type="number" class="form-control" id="sistolica" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="diastolica" class="form-label">Diastólica</label>
+                                        <input type="number" class="form-control" id="diastolica" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="riesgo" class="form-label">Nivel de Riesgo</label>
+                                        <select class="form-select" id="riesgo" required>
+                                            <option value="Bajo">Bajo</option>
+                                            <option value="Moderado">Moderado</option>
+                                            <option value="Alto">Alto</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="notas" class="form-label">Notas</label>
+                                <textarea class="form-control" id="notas" rows="2"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-plus me-1"></i>Agregar Registro
+                            </button>
+                        </form>
+
+                        <!-- Lista de registros -->
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tablaRegistros">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Paciente</th>
+                                        <th>Fecha</th>
+                                        <th>Presión</th>
+                                        <th>Nivel Riesgo</th>
+                                        <th>Notas</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaRegistros">
+                                    <!-- Los registros se cargarán aquí -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Módulo de Gráficos -->
+            <div class="tab-pane fade" id="graficos" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Análisis y Gráficos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filtros para gráficos -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="pacienteGrafico" class="form-label">Paciente</label>
+                                <select class="form-select" id="pacienteGrafico" required>
+                                    <option value="">Seleccionar paciente</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="fechaInicioGrafico" class="form-label">Fecha inicio</label>
+                                <input type="date" class="form-control" id="fechaInicioGrafico">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="fechaFinGrafico" class="form-label">Fecha fin</label>
+                                <input type="date" class="form-control" id="fechaFinGrafico">
+                            </div>
+                        </div>
+                        <button id="generarGrafico" class="btn btn-primary mb-4">
+                            <i class="fas fa-chart-bar me-1"></i>Generar Gráficos
+                        </button>
+
+                        <!-- Gráficos -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6>Presión Arterial Sistólica y Diastólica</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="graficoPresion" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6>Distribución de Niveles de Riesgo</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="graficoRiesgo" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Análisis IA -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-robot me-2"></i>Análisis Inteligente
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="analisisIA" class="alert alert-info">
+                                    Selecciona un paciente y genera los gráficos para obtener un análisis inteligente.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="config/firebase-config.js"></script>
+    <script src="js/pacientes.js"></script>
+    <script src="js/registros.js"></script>
+    <script src="js/graficos.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
