@@ -163,16 +163,36 @@ class GestorRegistros {
         const tr = document.createElement('tr');
         const claseRiesgo = `risk-${registro.risk_level ? registro.risk_level.toLowerCase() : 'bajo'}`;
         
-        // Formatear fecha correctamente
+        // FORMATO CORRECTO PARA FECHAS COMO CADENA
         let fechaFormateada = 'Fecha inválida';
         try {
-            fechaFormateada = new Date(registro.date).toLocaleDateString('es-ES');
+            // Intentar diferentes formatos de fecha
+            if (registro.date) {
+                if (registro.date.includes('T')) {
+                    // Formato ISO: "2024-01-15T00:00:00.000Z"
+                    fechaFormateada = new Date(registro.date).toLocaleDateString('es-ES');
+                } else {
+                    // Formato simple: "2024-01-15"
+                    const [year, month, day] = registro.date.split('-');
+                    fechaFormateada = `${day}/${month}/${year}`;
+                }
+            }
         } catch (e) {
             console.warn('Fecha inválida:', registro.date);
+            fechaFormateada = registro.date || 'Fecha inválida';
         }
         
-        // Obtener nombre del paciente (usar patient_name si existe, sino buscar)
-        let nombrePaciente = registro.patient_name || 'Paciente no encontrado';
+        // BUSCAR NOMBRE DEL PACIENTE CORRECTAMENTE
+        let nombrePaciente = 'Paciente no encontrado';
+        if (registro.patient_name) {
+            nombrePaciente = registro.patient_name;
+        } else if (window.gestorPacientes && window.gestorPacientes.pacientes) {
+            // Buscar en la lista local de pacientes
+            const paciente = window.gestorPacientes.pacientes.find(p => p.id === registro.patient_id);
+            if (paciente) {
+                nombrePaciente = paciente.name;
+            }
+        }
         
         tr.innerHTML = `
             <td><strong>${nombrePaciente}</strong></td>
