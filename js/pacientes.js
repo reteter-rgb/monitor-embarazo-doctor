@@ -1,9 +1,9 @@
-// Gestión de pacientes
+// Gestión de pacientes - VERSIÓN CORREGIDA
 class GestorPacientes {
     constructor() {
         console.log('👤 GestorPacientes inicializado');
         this.pacientes = [];
-        this.formularioInicializado = false; // ← NUEVO: control de inicialización
+        this.formularioInicializado = false;
         
         this.inicializarEventos();
         this.cargarPacientes();
@@ -15,7 +15,8 @@ class GestorPacientes {
             console.log('⚠️ Eventos ya inicializados, omitiendo...');
             return;
         }
-  const formPaciente = document.getElementById('formPaciente');
+        
+        const formPaciente = document.getElementById('formPaciente');
         if (formPaciente) {
             // Remover event listeners existentes primero
             formPaciente.replaceWith(formPaciente.cloneNode(true));
@@ -30,14 +31,29 @@ class GestorPacientes {
             this.formularioInicializado = true;
             console.log('✅ Eventos del formulario inicializados (sin duplicados)');
         }
-    
+    }
+
     async agregarPaciente() {
+        console.log('🔵 Iniciando agregarPaciente...');
+        
+        // Verificar que db esté disponible
+        if (typeof db === 'undefined') {
+            this.mostrarMensaje('Error: Base de datos no disponible', 'error');
+            return;
+        }
+
         const nombre = document.getElementById('nombre').value;
         const email = document.getElementById('email').value;
         const edad = parseInt(document.getElementById('edad').value);
         const telefono = document.getElementById('telefono').value;
 
+        if (!nombre || !email || !edad || !telefono) {
+            this.mostrarMensaje('Por favor completa todos los campos', 'error');
+            return;
+        }
+
         try {
+            console.log('📝 Creando paciente...');
             const paciente = {
                 name: nombre,
                 email: email,
@@ -46,28 +62,29 @@ class GestorPacientes {
                 created_at: new Date().toISOString()
             };
 
-            await db.collection('patients').add(paciente);
+            console.log('🔥 Enviando a Firebase...', paciente);
             
-            // Limpiar formulario
+            const docRef = await db.collection('patients').add(paciente);
+            console.log('✅ Paciente agregado con ID:', docRef.id);
+            
             document.getElementById('formPaciente').reset();
-            
-            // Recargar lista
-            this.cargarPacientes();
-            
-            // Mostrar mensaje de éxito
-            this.mostrarMensaje('Paciente agregado correctamente', 'success');
+            await this.cargarPacientes();
+            this.mostrarMensaje('✅ Paciente agregado correctamente', 'success');
             
         } catch (error) {
-            console.error('Error al agregar paciente:', error);
-            this.mostrarMensaje('Error al agregar paciente', 'error');
+            console.error('❌ Error completo:', error);
+            this.mostrarMensaje(`❌ Error: ${error.message}`, 'error');
         }
     }
 
     async cargarPacientes() {
+        console.log('Cargando pacientes desde Firebase...');
+        
         try {
             const snapshot = await db.collection('patients').orderBy('created_at', 'desc').get();
-            this.pacientes = [];
+            console.log('Pacientes encontrados:', snapshot.size);
             
+            this.pacientes = [];
             snapshot.forEach(doc => {
                 this.pacientes.push({
                     id: doc.id,
@@ -80,12 +97,20 @@ class GestorPacientes {
             
         } catch (error) {
             console.error('Error al cargar pacientes:', error);
+            this.mostrarMensaje('Error al cargar pacientes: ' + error.message, 'error');
         }
     }
 
     mostrarPacientes() {
         const tbody = document.getElementById('listaPacientes');
+        if (!tbody) return;
+        
         tbody.innerHTML = '';
+
+        if (this.pacientes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay pacientes registrados</td></tr>';
+            return;
+        }
 
         this.pacientes.forEach(paciente => {
             const tr = document.createElement('tr');
@@ -106,16 +131,10 @@ class GestorPacientes {
     }
 
     actualizarSelectoresPacientes() {
-        const selectores = [
-            'filtroPaciente',
-            'pacienteRegistro', 
-            'pacienteGrafico'
-        ];
-
+        const selectores = ['filtroPaciente', 'pacienteRegistro', 'pacienteGrafico'];
         selectores.forEach(selectorId => {
             const select = document.getElementById(selectorId);
             if (select) {
-                // Mantener la opción actual seleccionada
                 const valorActual = select.value;
                 select.innerHTML = selectorId === 'filtroPaciente' 
                     ? '<option value="">Todos los pacientes</option>'
@@ -128,7 +147,6 @@ class GestorPacientes {
                     select.appendChild(option);
                 });
 
-                // Restaurar selección anterior si existe
                 if (this.pacientes.find(p => p.id === valorActual)) {
                     select.value = valorActual;
                 }
@@ -140,37 +158,39 @@ class GestorPacientes {
         if (confirm('¿Estás seguro de que quieres eliminar este paciente?')) {
             try {
                 await db.collection('patients').doc(id).delete();
-                this.cargarPacientes();
+                await this.cargarPacientes();
                 this.mostrarMensaje('Paciente eliminado correctamente', 'success');
             } catch (error) {
                 console.error('Error al eliminar paciente:', error);
-                this.mostrarMensaje('Error al eliminar paciente', 'error');
+                this.mostrarMensaje('Error al eliminar paciente: ' + error.message, 'error');
             }
         }
     }
 
     mostrarMensaje(mensaje, tipo) {
-        // Crear toast de Bootstrap
-        const toastContainer = document.createElement('div');
-        toastContainer.innerHTML = `
-            <div class="toast align-items-center text-white bg-${tipo === 'success' ? 'success' : 'danger'} border-0 show" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        ${mensaje}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        document.body.appendChild(toastContainer);
+        document.body.appendChild(alertDiv);
         
-        // Remover después de 3 segundos
         setTimeout(() => {
-            toastContainer.remove();
-        }, 3000);
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 5000);
     }
 }
 
-// Inicializar gestor de pacientes
-const gestorPacientes = new GestorPacientes();
+// Inicializar cuando esté listo
+console.log('👥 Clase GestorPacientes definida correctamente');
+
+// Hacer disponible globalmente
+if (typeof window !== 'undefined') {
+    window.GestorPacientes = GestorPacientes;
+    console.log('✅ GestorPacientes disponible globalmente');
+}
