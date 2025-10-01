@@ -1,9 +1,9 @@
 // Configuración REAL de Firebase - REEMPLAZA con tus datos
 const firebaseConfig = {
   apiKey: "AIzaSyBz-OtwR7FjXXxniTujLMfXl-hmhpbixJw",
-  authDomain: "monitorembarazo.netlify.app",
+  authDomain: "com.example.monitorembarazo",
   projectId: "monitorembarazo",
-  storageBucket: "com.example.monitorembarazo",
+  storageBucket: "monitorembarazo.firebasestorage.app",
   messagingSenderId: "898197830613",
   appId: "1:898197830613:android:e8bf61614b1d63dd4e9b5c"
 };
