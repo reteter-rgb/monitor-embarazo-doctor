@@ -1,19 +1,36 @@
 // Gestión de pacientes
 class GestorPacientes {
     constructor() {
+        console.log('👤 GestorPacientes inicializado');
         this.pacientes = [];
-        this.cargarPacientes();
+        this.formularioInicializado = false; // ← NUEVO: control de inicialización
+        
         this.inicializarEventos();
+        this.cargarPacientes();
     }
 
     inicializarEventos() {
-        // Formulario de paciente
-        document.getElementById('formPaciente').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.agregarPaciente();
-        });
-    }
-
+        // Evitar inicialización duplicada
+        if (this.formularioInicializado) {
+            console.log('⚠️ Eventos ya inicializados, omitiendo...');
+            return;
+        }
+  const formPaciente = document.getElementById('formPaciente');
+        if (formPaciente) {
+            // Remover event listeners existentes primero
+            formPaciente.replaceWith(formPaciente.cloneNode(true));
+            
+            // Volver a obtener el formulario fresco
+            const formFresco = document.getElementById('formPaciente');
+            formFresco.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.agregarPaciente();
+            });
+            
+            this.formularioInicializado = true;
+            console.log('✅ Eventos del formulario inicializados (sin duplicados)');
+        }
+    
     async agregarPaciente() {
         const nombre = document.getElementById('nombre').value;
         const email = document.getElementById('email').value;
