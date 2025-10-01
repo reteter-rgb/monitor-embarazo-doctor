@@ -28,54 +28,69 @@ class GestorGraficos {
         if (fechaFinInput) fechaFinInput.value = fechaFin.toISOString().split('T')[0];
     }
 
-    async generarGraficos() {
-        const pacienteId = document.getElementById('pacienteGrafico').value;
-        const fechaInicio = document.getElementById('fechaInicioGrafico').value;
-        const fechaFin = document.getElementById('fechaFinGrafico').value;
+   async generarGraficos() {
+    const pacienteId = document.getElementById('pacienteGrafico').value;
+    const fechaInicio = document.getElementById('fechaInicioGrafico').value;
+    const fechaFin = document.getElementById('fechaFinGrafico').value;
 
-        if (!pacienteId) {
-            this.mostrarMensaje('Por favor selecciona un paciente', 'error');
+    if (!pacienteId) {
+        this.mostrarMensaje('Por favor selecciona un paciente', 'error');
+        return;
+    }
+
+    try {
+        console.log('🔍 Buscando registros (método óptimo con índice)...');
+        
+        // CONSULTA ÓPTIMA con índice
+        let query = db.collection('daily_records')
+            .where('patient_id', '==', pacienteId)
+            .orderBy('date', 'asc');
+
+        // Aplicar filtros de fecha si existen
+        if (fechaInicio) {
+            query = query.where('date', '>=', fechaInicio);
+        }
+        if (fechaFin) {
+            query = query.where('date', '<=', fechaFin);
+        }
+
+        const snapshot = await query.get();
+        this.registrosFiltrados = [];
+        
+        snapshot.forEach(doc => {
+            this.registrosFiltrados.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+
+        console.log(`📊 ${this.registrosFiltrados.length} registros encontrados`);
+
+        if (this.registrosFiltrados.length === 0) {
+            this.mostrarMensaje('No se encontraron registros para el paciente en el rango de fechas seleccionado', 'warning');
             return;
         }
 
-        try {
-            // Obtener registros filtrados
-            let query = db.collection('daily_records')
-                .where('patient_id', '==', pacienteId)
-                .orderBy('date', 'asc');
+        this.crearGraficoPresion();
+        this.crearGraficoRiesgo();
+        this.generarAnalisisIA();
 
-            if (fechaInicio) {
-                query = query.where('date', '>=', fechaInicio);
-            }
-            if (fechaFin) {
-                query = query.where('date', '<=', fechaFin);
-            }
+        this.mostrarMensaje(`✅ Gráficos generados con ${this.registrosFiltrados.length} registros`, 'success');
 
-            const snapshot = await query.get();
-            this.registrosFiltrados = [];
-            
-            snapshot.forEach(doc => {
-                this.registrosFiltrados.push({
-                    id: doc.id,
-                    ...doc.data()
-                });
-            });
-
-            if (this.registrosFiltrados.length === 0) {
-                this.mostrarMensaje('No se encontraron registros para el paciente en el rango de fechas seleccionado', 'warning');
-                return;
-            }
-
-            this.crearGraficoPresion();
-            this.crearGraficoRiesgo();
-            this.generarAnalisisIA();
-
-        } catch (error) {
-            console.error('Error al generar gráficos:', error);
+    } catch (error) {
+        console.error('Error al generar gráficos:', error);
+        
+        if (error.message.includes('index')) {
+            this.mostrarMensaje(
+                '⚠️ El índice aún no está listo. ' +
+                'Por favor usa la versión temporal o espera unos minutos más.',
+                'warning'
+            );
+        } else {
             this.mostrarMensaje('Error al generar gráficos: ' + error.message, 'error');
         }
     }
-
+}
     crearGraficoPresion() {
         const ctx = document.getElementById('graficoPresion');
         if (!ctx) {
