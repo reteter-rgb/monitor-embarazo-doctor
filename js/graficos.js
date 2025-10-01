@@ -1,4 +1,4 @@
-// Gestión de gráficos y análisis
+// Gestión de gráficos y análisis - VERSIÓN CORREGIDA
 class GestorGraficos {
     constructor() {
         this.chartPresion = null;
@@ -9,17 +9,23 @@ class GestorGraficos {
     }
 
     inicializarEventos() {
-        document.getElementById('generarGrafico').addEventListener('click', () => {
-            this.generarGraficos();
-        });
+        const botonGenerar = document.getElementById('generarGrafico');
+        if (botonGenerar) {
+            botonGenerar.addEventListener('click', () => {
+                this.generarGraficos();
+            });
+        }
 
         // Establecer fechas por defecto (últimos 30 días)
         const fechaFin = new Date();
         const fechaInicio = new Date();
         fechaInicio.setDate(fechaInicio.getDate() - 30);
 
-        document.getElementById('fechaInicioGrafico').value = fechaInicio.toISOString().split('T')[0];
-        document.getElementById('fechaFinGrafico').value = fechaFin.toISOString().split('T')[0];
+        const fechaInicioInput = document.getElementById('fechaInicioGrafico');
+        const fechaFinInput = document.getElementById('fechaFinGrafico');
+        
+        if (fechaInicioInput) fechaInicioInput.value = fechaInicio.toISOString().split('T')[0];
+        if (fechaFinInput) fechaFinInput.value = fechaFin.toISOString().split('T')[0];
     }
 
     async generarGraficos() {
@@ -28,7 +34,7 @@ class GestorGraficos {
         const fechaFin = document.getElementById('fechaFinGrafico').value;
 
         if (!pacienteId) {
-            alert('Por favor selecciona un paciente');
+            this.mostrarMensaje('Por favor selecciona un paciente', 'error');
             return;
         }
 
@@ -56,7 +62,7 @@ class GestorGraficos {
             });
 
             if (this.registrosFiltrados.length === 0) {
-                alert('No se encontraron registros para el paciente en el rango de fechas seleccionado');
+                this.mostrarMensaje('No se encontraron registros para el paciente en el rango de fechas seleccionado', 'warning');
                 return;
             }
 
@@ -66,12 +72,16 @@ class GestorGraficos {
 
         } catch (error) {
             console.error('Error al generar gráficos:', error);
-            alert('Error al generar gráficos');
+            this.mostrarMensaje('Error al generar gráficos: ' + error.message, 'error');
         }
     }
 
     crearGraficoPresion() {
-        const ctx = document.getElementById('graficoPresion').getContext('2d');
+        const ctx = document.getElementById('graficoPresion');
+        if (!ctx) {
+            console.error('No se encontró el canvas para el gráfico de presión');
+            return;
+        }
         
         // Destruir gráfico anterior si existe
         if (this.chartPresion) {
@@ -142,7 +152,11 @@ class GestorGraficos {
     }
 
     crearGraficoRiesgo() {
-        const ctx = document.getElementById('graficoRiesgo').getContext('2d');
+        const ctx = document.getElementById('graficoRiesgo');
+        if (!ctx) {
+            console.error('No se encontró el canvas para el gráfico de riesgo');
+            return;
+        }
         
         // Destruir gráfico anterior si existe
         if (this.chartRiesgo) {
@@ -157,7 +171,9 @@ class GestorGraficos {
         };
 
         this.registrosFiltrados.forEach(reg => {
-            conteoRiesgo[reg.risk_level]++;
+            if (conteoRiesgo.hasOwnProperty(reg.risk_level)) {
+                conteoRiesgo[reg.risk_level]++;
+            }
         });
 
         this.chartRiesgo = new Chart(ctx, {
@@ -167,4 +183,119 @@ class GestorGraficos {
                 datasets: [{
                     data: [conteoRiesgo.Bajo, conteoRiesgo.Moderado, conteoRiesgo.Alto],
                     backgroundColor: [
-                        'rgb
+                        'rgb(75, 192, 192)',
+                        'rgb(255, 205, 86)',
+                        'rgb(255, 99, 132)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribución de Niveles de Riesgo'
+                    }
+                }
+            }
+        });
+    }
+
+    generarAnalisisIA() {
+        const analisisDiv = document.getElementById('analisisIA');
+        if (!analisisDiv) return;
+        
+        if (this.registrosFiltrados.length === 0) {
+            analisisDiv.innerHTML = '<p>No hay datos suficientes para el análisis.</p>';
+            return;
+        }
+
+        // Análisis básico de los datos
+        const ultimoRegistro = this.registrosFiltrados[this.registrosFiltrados.length - 1];
+        const promedioSistolica = this.calcularPromedio(this.registrosFiltrados.map(r => r.systolic));
+        const promedioDiastolica = this.calcularPromedio(this.registrosFiltrados.map(r => r.diastolic));
+        const tendencia = this.analizarTendencia();
+        const alertas = this.generarAlertas();
+
+        let analisisHTML = `
+            <h6><i class="fas fa-chart-line me-2"></i>Análisis del Paciente</h6>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <p><strong>Última medición:</strong> ${ultimoRegistro.systolic}/${ultimoRegistro.diastolic} mmHg</p>
+                    <p><strong>Promedio:</strong> ${promedioSistolica.toFixed(1)}/${promedioDiastolica.toFixed(1)} mmHg</p>
+                    <p><strong>Tendencia:</strong> ${tendencia}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Total de registros:</strong> ${this.registrosFiltrados.length}</p>
+                    <p><strong>Período analizado:</strong> ${this.registrosFiltrados.length} días</p>
+                    ${alertas}
+                </div>
+            </div>
+        `;
+
+        analisisDiv.innerHTML = analisisHTML;
+    }
+
+    calcularPromedio(array) {
+        return array.reduce((a, b) => a + b, 0) / array.length;
+    }
+
+    analizarTendencia() {
+        if (this.registrosFiltrados.length < 2) return 'Datos insuficientes';
+        
+        const primeros = this.registrosFiltrados.slice(0, 3);
+        const ultimos = this.registrosFiltrados.slice(-3);
+        
+        const promPrimerosSist = this.calcularPromedio(primeros.map(r => r.systolic));
+        const promUltimosSist = this.calcularPromedio(ultimos.map(r => r.systolic));
+        
+        if (promUltimosSist > promPrimerosSist + 5) return '📈 Tendencia al alza';
+        if (promUltimosSist < promPrimerosSist - 5) return '📉 Tendencia a la baja';
+        return '➡️ Estable';
+    }
+
+    generarAlertas() {
+        const ultimo = this.registrosFiltrados[this.registrosFiltrados.length - 1];
+        let alertas = '';
+        
+        if (ultimo.systolic > 140 || ultimo.diastolic > 90) {
+            alertas += '<p class="text-danger"><strong>⚠️ ALERTA:</strong> Presión elevada</p>';
+        }
+        if (ultimo.risk_level === 'Alto') {
+            alertas += '<p class="text-warning"><strong>🔴 ALTO RIESGO:</strong> Consultar médico</p>';
+        }
+        
+        return alertas || '<p class="text-success">✅ Situación dentro de parámetros normales</p>';
+    }
+
+    mostrarMensaje(mensaje, tipo) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${tipo === 'error' ? 'danger' : tipo === 'warning' ? 'warning' : 'info'} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const cardBody = document.querySelector('#graficos .card-body');
+        if (cardBody) {
+            cardBody.prepend(alertDiv);
+        }
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 5000);
+    }
+}
+
+// Inicializar cuando esté listo
+if (typeof db !== 'undefined') {
+    window.gestorGraficos = new GestorGraficos();
+} else {
+    console.log('Esperando a que Firebase esté disponible para inicializar gráficos...');
+}
