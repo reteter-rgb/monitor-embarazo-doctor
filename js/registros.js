@@ -39,47 +39,64 @@ class GestorRegistros {
         document.getElementById('fechaRegistro').valueAsDate = new Date();
     }
 
-    async agregarRegistro() {
-        const pacienteId = document.getElementById('pacienteRegistro').value;
-        const fecha = document.getElementById('fechaRegistro').value;
-        const sistolica = parseInt(document.getElementById('sistolica').value);
-        const diastolica = parseInt(document.getElementById('diastolica').value);
-        const riesgo = document.getElementById('riesgo').value;
-        const notas = document.getElementById('notas').value;
+  
+  
+  async agregarRegistro() {
+    const pacienteId = document.getElementById('pacienteRegistro').value;
+    const fecha = document.getElementById('fechaRegistro').value;
+    const sistolica = parseInt(document.getElementById('sistolica').value);
+    const diastolica = parseInt(document.getElementById('diastolica').value);
+    const riesgo = document.getElementById('riesgo').value;
+    const notas = document.getElementById('notas').value;
 
-        try {
-            // Obtener nombre del paciente
-            const pacienteDoc = await db.collection('patients').doc(pacienteId).get();
-            const pacienteNombre = pacienteDoc.data().name;
-
-            const registro = {
-                date: fecha,
-                systolic: sistolica,
-                diastolic: diastolica,
-                notes: notas,
-                patient_id: pacienteId,
-                patient_name: pacienteNombre,
-                risk_level: riesgo,
-                record_id: this.generarIdUnico(),
-                created_at: new Date().toISOString()
-            };
-
-            await db.collection('daily_records').add(registro);
-            
-            // Limpiar formulario
-            document.getElementById('formRegistro').reset();
-            document.getElementById('fechaRegistro').valueAsDate = new Date();
-            
-            // Recargar lista
-            this.cargarRegistros();
-            
-            this.mostrarMensaje('Registro agregado correctamente', 'success');
-            
-        } catch (error) {
-            console.error('Error al agregar registro:', error);
-            this.mostrarMensaje('Error al agregar registro', 'error');
-        }
+    // Validaciones
+    if (!pacienteId) {
+        this.mostrarMensaje('Por favor selecciona un paciente', 'error');
+        return;
     }
+
+    if (!fecha) {
+        this.mostrarMensaje('Por favor selecciona una fecha', 'error');
+        return;
+    }
+
+    try {
+        // Obtener nombre del paciente desde la lista local
+        const paciente = gestorPacientes.pacientes.find(p => p.id === pacienteId);
+        const pacienteNombre = paciente ? paciente.name : 'Paciente desconocido';
+
+        const registro = {
+            date: fecha,
+            systolic: sistolica,
+            diastolic: diastolica,
+            notes: notas,
+            patient_id: pacienteId,
+            patient_name: pacienteNombre, // ← GUARDAR nombre también
+            risk_level: riesgo,
+            record_id: this.generarIdUnico(),
+            created_at: new Date().toISOString()
+        };
+
+        console.log('Guardando registro:', registro);
+        
+        await db.collection('daily_records').add(registro);
+        
+        // Limpiar formulario pero mantener paciente seleccionado
+        document.getElementById('sistolica').value = '';
+        document.getElementById('diastolica').value = '';
+        document.getElementById('notas').value = '';
+        document.getElementById('fechaRegistro').valueAsDate = new Date();
+        
+        // Recargar lista
+        await this.cargarRegistros();
+        
+        this.mostrarMensaje('✅ Registro agregado correctamente', 'success');
+        
+    } catch (error) {
+        console.error('Error al agregar registro:', error);
+        this.mostrarMensaje('❌ Error al agregar registro: ' + error.message, 'error');
+    }
+}
 
     generarIdUnico() {
         return 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -131,37 +148,49 @@ class GestorRegistros {
         this.mostrarRegistros(registrosFiltrados);
     }
 
-    mostrarRegistros(registros) {
-        const tbody = document.getElementById('listaRegistros');
-        tbody.innerHTML = '';
+   mostrarRegistros(registros) {
+    const tbody = document.getElementById('listaRegistros');
+    tbody.innerHTML = '';
 
-        if (registros.length === 0) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td colspan="6" class="text-center">No se encontraron registros</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
-
-        registros.forEach(registro => {
-            const tr = document.createElement('tr');
-            const claseRiesgo = `risk-${registro.risk_level.toLowerCase()}`;
-            
-            tr.innerHTML = `
-                <td>${registro.patient_name}</td>
-                <td>${new Date(registro.date).toLocaleDateString()}</td>
-                <td>${registro.systolic}/${registro.diastolic}</td>
-                <td><span class="badge ${claseRiesgo}">${registro.risk_level}</span></td>
-                <td>${registro.notes || '-'}</td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="gestorRegistros.eliminarRegistro('${registro.id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+    if (registros.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6" class="text-center text-muted">No se encontraron registros</td>`;
+        tbody.appendChild(tr);
+        return;
     }
 
+    registros.forEach(registro => {
+        const tr = document.createElement('tr');
+        const claseRiesgo = `risk-${registro.risk_level ? registro.risk_level.toLowerCase() : 'bajo'}`;
+        
+        // Formatear fecha correctamente
+        let fechaFormateada = 'Fecha inválida';
+        try {
+            fechaFormateada = new Date(registro.date).toLocaleDateString('es-ES');
+        } catch (e) {
+            console.warn('Fecha inválida:', registro.date);
+        }
+        
+        // Obtener nombre del paciente (usar patient_name si existe, sino buscar)
+        let nombrePaciente = registro.patient_name || 'Paciente no encontrado';
+        
+        tr.innerHTML = `
+            <td><strong>${nombrePaciente}</strong></td>
+            <td>${fechaFormateada}</td>
+            <td><span class="badge bg-dark">${registro.systolic}/${registro.diastolic}</span></td>
+            <td><span class="badge ${claseRiesgo}">${registro.risk_level || 'Bajo'}</span></td>
+            <td>${registro.notes || '<em class="text-muted">Sin notas</em>'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="gestorRegistros.eliminarRegistro('${registro.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+   
+   
     async eliminarRegistro(id) {
         if (confirm('¿Estás seguro de que quieres eliminar este registro?')) {
             try {
