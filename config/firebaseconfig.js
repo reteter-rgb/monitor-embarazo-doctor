@@ -1,7 +1,7 @@
-// config/firebase-config.js - CON TUS DATOS REALES PARA WEB
-console.log('🚀 Iniciando configuración Firebase...');
+// config/firebase-config.js - VERSIÓN SIMPLIFICADA Y FUNCIONAL
+console.log('🎯 Iniciando configuración Firebase...');
 
-// TUS DATOS REALES - CONFIGURACIÓN CORRECTA PARA WEB
+// TUS DATOS REALES
 const firebaseConfig = {
   apiKey: "AIzaSyBNeBD2TXOGcAAT7US8o0JJ8LrFE0TiNxI",
   authDomain: "monitorembarazo.firebaseapp.com",
@@ -12,87 +12,80 @@ const firebaseConfig = {
   measurementId: "G-9D3ENB2MQ3"
 };
 
-console.log('✅ Configuración Firebase cargada para proyecto:', firebaseConfig.projectId);
+console.log('📋 Proyecto:', firebaseConfig.projectId);
 
-// Inicializar Firebase de forma segura
+// Inicialización DIRECTA y SIMPLE
 try {
-    // Verificar que Firebase esté disponible
+    console.log('🔄 Verificando Firebase...');
+    
+    // Verificar que los SDKs estén cargados
     if (typeof firebase === 'undefined') {
-        throw new Error('Firebase SDK no se cargó correctamente');
+        throw new Error('Firebase App SDK no cargado');
     }
-
-    // Inicializar solo si no está inicializado
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-        console.log('🔥 Firebase inicializado correctamente');
+    if (typeof firebase.firestore === 'undefined') {
+        throw new Error('Firestore SDK no cargado');
+    }
+    
+    console.log('✅ SDKs de Firebase cargados correctamente');
+    
+    // Inicializar Firebase
+    let app;
+    if (firebase.apps.length === 0) {
+        console.log('🚀 Inicializando Firebase...');
+        app = firebase.initializeApp(firebaseConfig);
     } else {
-        firebase.app(); // Usar la instancia existente
-        console.log('🔥 Firebase ya estaba inicializado');
+        console.log('ℹ️ Usando instancia existente de Firebase');
+        app = firebase.app();
     }
     
-    // Crear referencia global a Firestore
+    // Inicializar Firestore
+    console.log('💾 Inicializando Firestore...');
     window.db = firebase.firestore();
-    console.log('💾 Firestore db inicializado');
     
-    // Configurar settings para desarrollo
-    db.settings({
+    // Configuración básica
+    window.db.settings({
         cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
     });
     
-    // Intentar habilitar persistencia offline
-    db.enablePersistence()
-        .then(() => {
-            console.log('📱 Persistencia offline habilitada');
-        })
-        .catch(err => {
-            console.log('⚠️ Persistencia no disponible:', err.message);
-        });
-        
-} catch (error) {
-    console.error('❌ Error crítico inicializando Firebase:', error);
-    console.error('Detalles:', error.message);
+    console.log('✅ Firebase y Firestore inicializados correctamente');
+    console.log('✅ Variable "db" definida correctamente');
     
-    // Mostrar error al usuario
-    if (typeof document !== 'undefined') {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'alert alert-danger position-fixed top-0 start-0 w-100 m-0 rounded-0';
-        errorDiv.style.zIndex = '9999';
-        errorDiv.innerHTML = `
-            <div class="container">
-                <strong>Error de Firebase:</strong> ${error.message} 
-                <button class="btn btn-sm btn-outline-danger ms-2" onclick="this.parentElement.parentElement.remove()">×</button>
-            </div>
-        `;
-        document.body.prepend(errorDiv);
-    }
+    // Probar conexión
+    testConexion();
+    
+} catch (error) {
+    console.error('❌ ERROR en firebase-config.js:', error);
+    console.error('Mensaje:', error.message);
+    
+    // Crear db como objeto vacío para evitar errores
+    window.db = {
+        collection: () => { 
+            console.error('Firebase no disponible');
+            return {
+                get: () => Promise.reject('Firebase no disponible'),
+                add: () => Promise.reject('Firebase no disponible'),
+                doc: () => ({ delete: () => Promise.reject('Firebase no disponible') })
+            };
+        }
+    };
 }
 
-// Función para verificar conexión
-window.verificarFirebase = function() {
-    console.group('🔍 Diagnóstico Firebase');
-    console.log('Firebase apps:', firebase.apps.length);
-    console.log('Firestore disponible:', typeof firebase.firestore !== 'undefined');
-    console.log('Variable db:', typeof window.db !== 'undefined' ? '✅ Definida' : '❌ No definida');
-    
-    if (window.db) {
-        // Probar conexión simple
-        db.collection('patients').limit(1).get()
-            .then(snapshot => {
-                console.log('✅ Conexión Firestore: OK -', snapshot.size, 'pacientes encontrados');
+// Función para probar conexión
+function testConexion() {
+    if (window.db && typeof window.db.collection === 'function') {
+        console.log('🔍 Probando conexión con Firestore...');
+        window.db.collection('test').limit(1).get()
+            .then(() => {
+                console.log('✅ Conexión con Firestore: EXITOSA');
             })
             .catch(error => {
-                console.error('❌ Conexión Firestore falló:', error.message);
-                console.log('💡 Consejo: Revisa las reglas de Firestore');
+                console.error('❌ Conexión con Firestore falló:', error.message);
+                console.log('💡 Posibles causas:');
+                console.log('   - Reglas de Firestore muy restrictivas');
+                console.log('   - Dominio no autorizado en Firebase Auth');
+                console.log('   - Problema de red');
             });
     }
-    console.groupEnd();
-};
-
-// Ejecutar verificación cuando esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', window.verificarFirebase);
-} else {
-    setTimeout(window.verificarFirebase, 1000);
 }
 
-console.log('🎯 Firebase config completado - Esperando inicialización...');
+console.log('🏁 firebase-config.js completado');
