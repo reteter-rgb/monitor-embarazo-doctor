@@ -1,12 +1,22 @@
 // Configuración REAL de Firebase - REEMPLAZA con tus datos
 const firebaseConfig = {
-  apiKey: "AIzaSyBz-OtwR7FjXXxniTujLMfXl-hmhpbixJw",
-  authDomain: "com.example.monitorembarazo",
+
+  apiKey: "AIzaSyBNeBD2TXOGcAAT7US8o0JJ8LrFE0TiNxI",
+
+  authDomain: "monitorembarazo.firebaseapp.com",
+
   projectId: "monitorembarazo",
+
   storageBucket: "monitorembarazo.firebasestorage.app",
+
   messagingSenderId: "898197830613",
-  appId: "1:898197830613:android:e8bf61614b1d63dd4e9b5c"
+
+  appId: "1:898197830613:web:daa6a783c518b6e14e9b5c",
+
+  measurementId: "G-9D3ENB2MQ3"
+
 };
+
 
 // Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
