@@ -28,7 +28,7 @@ class GestorGraficos {
         if (fechaFinInput) fechaFinInput.value = fechaFin.toISOString().split('T')[0];
     }
 
-   async generarGraficos() {
+async generarGraficos() {
     const pacienteId = document.getElementById('pacienteGrafico').value;
     const fechaInicio = document.getElementById('fechaInicioGrafico').value;
     const fechaFin = document.getElementById('fechaFinGrafico').value;
@@ -39,35 +39,69 @@ class GestorGraficos {
     }
 
     try {
-        console.log('🔍 Buscando registros (método óptimo con índice)...');
+        console.log('🔍 Buscando registros...');
         
-        // CONSULTA ÓPTIMA con índice
-        let query = db.collection('daily_records')
+        // Obtener TODOS los registros del paciente
+        const snapshot = await db.collection('daily_records')
             .where('patient_id', '==', pacienteId)
-            .orderBy('date', 'asc');
-
-        // Aplicar filtros de fecha si existen
-        if (fechaInicio) {
-            query = query.where('date', '>=', fechaInicio);
-        }
-        if (fechaFin) {
-            query = query.where('date', '<=', fechaFin);
-        }
-
-        const snapshot = await query.get();
+            .get();
+            
         this.registrosFiltrados = [];
         
         snapshot.forEach(doc => {
-            this.registrosFiltrados.push({
+            const registro = {
                 id: doc.id,
                 ...doc.data()
-            });
+            };
+            
+            // Convertir fecha de cadena a objeto Date para filtrado
+            let fechaRegistro;
+            if (registro.date) {
+                if (registro.date.includes('T')) {
+                    fechaRegistro = new Date(registro.date);
+                } else {
+                    // Formato YYYY-MM-DD
+                    const [year, month, day] = registro.date.split('-');
+                    fechaRegistro = new Date(year, month - 1, day);
+                }
+            }
+            
+            // Aplicar filtros de fecha
+            let incluirRegistro = true;
+            
+            if (fechaInicio) {
+                const fechaInicioObj = new Date(fechaInicio);
+                if (fechaRegistro < fechaInicioObj) {
+                    incluirRegistro = false;
+                }
+            }
+            
+            if (fechaFin) {
+                const fechaFinObj = new Date(fechaFin);
+                fechaFinObj.setHours(23, 59, 59, 999); // Incluir todo el día
+                if (fechaRegistro > fechaFinObj) {
+                    incluirRegistro = false;
+                }
+            }
+            
+            if (incluirRegistro) {
+                // Guardar también la fecha como Date para ordenamiento
+                registro.fechaDate = fechaRegistro;
+                this.registrosFiltrados.push(registro);
+            }
         });
 
-        console.log(`📊 ${this.registrosFiltrados.length} registros encontrados`);
+        // Ordenar por fecha
+        this.registrosFiltrados.sort((a, b) => a.fechaDate - b.fechaDate);
+
+        console.log(`📊 ${this.registrosFiltrados.length} registros encontrados después del filtrado`);
 
         if (this.registrosFiltrados.length === 0) {
-            this.mostrarMensaje('No se encontraron registros para el paciente en el rango de fechas seleccionado', 'warning');
+            this.mostrarMensaje(
+                'No se encontraron registros para el paciente en el rango de fechas seleccionado. ' +
+                'Verifica que las fechas estén en formato YYYY-MM-DD.',
+                'warning'
+            );
             return;
         }
 
@@ -75,96 +109,107 @@ class GestorGraficos {
         this.crearGraficoRiesgo();
         this.generarAnalisisIA();
 
-        this.mostrarMensaje(`✅ Gráficos generados con ${this.registrosFiltrados.length} registros`, 'success');
+        this.mostrarMensaje(
+            `✅ Gráficos generados con ${this.registrosFiltrados.length} registros`,
+            'success'
+        );
 
     } catch (error) {
         console.error('Error al generar gráficos:', error);
-        
-        if (error.message.includes('index')) {
-            this.mostrarMensaje(
-                '⚠️ El índice aún no está listo. ' +
-                'Por favor usa la versión temporal o espera unos minutos más.',
-                'warning'
-            );
-        } else {
-            this.mostrarMensaje('Error al generar gráficos: ' + error.message, 'error');
-        }
+        this.mostrarMensaje('Error al generar gráficos: ' + error.message, 'error');
     }
 }
-    crearGraficoPresion() {
-        const ctx = document.getElementById('graficoPresion');
-        if (!ctx) {
-            console.error('No se encontró el canvas para el gráfico de presión');
-            return;
-        }
+
+
+ crearGraficoPresion() {
+    const ctx = document.getElementById('graficoPresion');
+    if (!ctx) {
+        console.error('No se encontró el canvas para el gráfico de presión');
+        return;
+    }
+    
+    // Destruir gráfico anterior si existe
+    if (this.chartPresion) {
+        this.chartPresion.destroy();
+    }
+
+    // FORMATO CORRECTO PARA FECHAS COMO CADENA
+    const fechas = this.registrosFiltrados.map(reg => {
+        if (!reg.date) return 'Fecha inválida';
         
-        // Destruir gráfico anterior si existe
-        if (this.chartPresion) {
-            this.chartPresion.destroy();
+        try {
+            if (reg.date.includes('T')) {
+                // Formato ISO
+                return new Date(reg.date).toLocaleDateString('es-ES');
+            } else {
+                // Formato YYYY-MM-DD
+                const [year, month, day] = reg.date.split('-');
+                return `${day}/${month}/${year}`;
+            }
+        } catch (e) {
+            return reg.date; // Devolver la cadena original si hay error
         }
+    });
+    
+    const sistolicas = this.registrosFiltrados.map(reg => reg.systolic);
+    const diastolicas = this.registrosFiltrados.map(reg => reg.diastolic);
 
-        const fechas = this.registrosFiltrados.map(reg => 
-            new Date(reg.date).toLocaleDateString()
-        );
-        const sistolicas = this.registrosFiltrados.map(reg => reg.systolic);
-        const diastolicas = this.registrosFiltrados.map(reg => reg.diastolic);
-
-        this.chartPresion = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: fechas,
-                datasets: [
-                    {
-                        label: 'Presión Sistólica',
-                        data: sistolicas,
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                        tension: 0.1,
-                        fill: true
-                    },
-                    {
-                        label: 'Presión Diastólica',
-                        data: diastolicas,
-                        borderColor: 'rgb(54, 162, 235)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                        tension: 0.1,
-                        fill: true
-                    }
-                ]
+    this.chartPresion = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: fechas,
+            datasets: [
+                {
+                    label: 'Presión Sistólica',
+                    data: sistolicas,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                },
+                {
+                    label: 'Presión Diastólica',
+                    data: diastolicas,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Evolución de la Presión Arterial'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
             },
-            options: {
-                responsive: true,
-                plugins: {
+            scales: {
+                x: {
+                    display: true,
                     title: {
                         display: true,
-                        text: 'Evolución de la Presión Arterial'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
+                        text: 'Fecha'
                     }
                 },
-                scales: {
-                    x: {
+                y: {
+                    display: true,
+                    title: {
                         display: true,
-                        title: {
-                            display: true,
-                            text: 'Fecha'
-                        }
+                        text: 'Presión (mmHg)'
                     },
-                    y: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: 'Presión (mmHg)'
-                        },
-                        suggestedMin: Math.min(...sistolicas, ...diastolicas) - 10,
-                        suggestedMax: Math.max(...sistolicas, ...diastolicas) + 10
-                    }
+                    suggestedMin: Math.min(...sistolicas, ...diastolicas) - 10,
+                    suggestedMax: Math.max(...sistolicas, ...diastolicas) + 10
                 }
             }
-        });
-    }
+        }
+    });
+}
 
     crearGraficoRiesgo() {
         const ctx = document.getElementById('graficoRiesgo');
@@ -272,6 +317,7 @@ class GestorGraficos {
         if (promUltimosSist < promPrimerosSist - 5) return '📉 Tendencia a la baja';
         return '➡️ Estable';
     }
+
 
     generarAlertas() {
         const ultimo = this.registrosFiltrados[this.registrosFiltrados.length - 1];
