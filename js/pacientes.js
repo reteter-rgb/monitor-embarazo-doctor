@@ -130,19 +130,22 @@ class GestorPacientes {
         });
     }
 
-  actualizarSelectoresPacientes() {
-    const selectores = ['filtroPaciente', 'pacienteRegistro'];
-    const busquedaGrafico = document.getElementById('pacientesOptions');
+ actualizarSelectoresPacientes() {
+    const selectores = ['filtroPaciente', 'pacienteRegistro', 'pacienteGrafico'];
     
-    // Actualizar selects normales
     selectores.forEach(selectorId => {
         const select = document.getElementById(selectorId);
         if (select) {
             const valorActual = select.value;
-            select.innerHTML = selectorId === 'filtroPaciente' 
-                ? '<option value="">Todos los pacientes</option>'
-                : '<option value="">Seleccionar paciente</option>';
             
+            // Configurar contenido según el select
+            if (selectorId === 'filtroPaciente') {
+                select.innerHTML = '<option value="">Todos los pacientes</option>';
+            } else {
+                select.innerHTML = '<option value="">Seleccionar paciente</option>';
+            }
+            
+            // Agregar pacientes
             this.pacientes.forEach(paciente => {
                 const option = document.createElement('option');
                 option.value = paciente.id;
@@ -150,27 +153,24 @@ class GestorPacientes {
                 select.appendChild(option);
             });
 
+            // Restaurar selección anterior si existe
             if (this.pacientes.find(p => p.id === valorActual)) {
                 select.value = valorActual;
             }
+            
+            // Inicializar bootstrap-select solo para pacienteGrafico
+            if (selectorId === 'pacienteGrafico' && typeof $.fn.selectpicker !== 'undefined') {
+                $(select).selectpicker({
+                    liveSearch: true,
+                    liveSearchPlaceholder: 'Escribe para buscar...',
+                    size: 5
+                });
+            }
         }
     });
-    
-    // Actualizar datalist para búsqueda en gráficos
-    if (busquedaGrafico) {
-        busquedaGrafico.innerHTML = '';
-        this.pacientes.forEach(paciente => {
-            const option = document.createElement('option');
-            option.value = paciente.name;
-            option.setAttribute('data-id', paciente.id);
-            busquedaGrafico.appendChild(option);
-        });
-    }
-    
-    // Configurar evento para la búsqueda en gráficos
-    this.configurarBusquedaGraficos();
 }
-
+ 
+ 
 configurarBusquedaGraficos() {
     const inputBusqueda = document.getElementById('pacienteGrafico');
     const hiddenId = document.getElementById('pacienteGraficoId');

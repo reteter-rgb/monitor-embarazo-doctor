@@ -29,20 +29,29 @@ class GestorGraficos {
     }
 
 async generarGraficos() {
-    // Usar el campo oculto en lugar del input directo
-    const pacienteId = document.getElementById('pacienteGraficoId').value;
-    const inputPaciente = document.getElementById('pacienteGrafico');
+    // Usar el select directamente (sin campo oculto)
+    let pacienteId;
+    
+    // Verificar si estamos usando bootstrap-select
+    const selectPaciente = document.getElementById('pacienteGrafico');
+    if (selectPaciente && typeof $.fn.selectpicker !== 'undefined' && $(selectPaciente).hasClass('selectpicker')) {
+        pacienteId = $(selectPaciente).selectpicker('val');
+    } else {
+        pacienteId = selectPaciente ? selectPaciente.value : '';
+    }
+    
     const fechaInicio = document.getElementById('fechaInicioGrafico').value;
     const fechaFin = document.getElementById('fechaFinGrafico').value;
 
     if (!pacienteId) {
-        this.mostrarMensaje('Por favor selecciona un paciente válido de la lista', 'error');
-        if (inputPaciente) inputPaciente.focus();
+        this.mostrarMensaje('Por favor selecciona un paciente', 'error');
+        if (selectPaciente) selectPaciente.focus();
         return;
     }
 
+    // Resto del código se mantiene igual...
     try {
-        console.log('🔍 Buscando registros...');
+        console.log('🔍 Buscando registros para paciente ID:', pacienteId);
         
         // Obtener TODOS los registros del paciente
         const snapshot = await db.collection('daily_records')
@@ -101,11 +110,20 @@ async generarGraficos() {
 
         if (this.registrosFiltrados.length === 0) {
             this.mostrarMensaje(
-                'No se encontraron registros para el paciente en el rango de fechas seleccionado. ' +
-                'Verifica que las fechas estén en formato YYYY-MM-DD.',
+                'No se encontraron registros para el paciente en el rango de fechas seleccionado',
                 'warning'
             );
             return;
+        }
+
+        // DESTRUIR GRÁFICOS ANTERIORES ANTES DE CREAR NUEVOS
+        if (this.chartPresion) {
+            this.chartPresion.destroy();
+            this.chartPresion = null;
+        }
+        if (this.chartRiesgo) {
+            this.chartRiesgo.destroy();
+            this.chartRiesgo = null;
         }
 
         this.crearGraficoPresion();
