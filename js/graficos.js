@@ -242,16 +242,48 @@ class GestorGraficos {
     const riskLevelsEncontrados = [...new Set(this.registrosFiltrados.map(r => r.risk_level))];
     console.log('Risk levels encontrados (originales):', riskLevelsEncontrados);
 
-    // FUNCIÓN PARA NORMALIZAR LOS VALORES DE RIESGO
+    // FUNCIÓN MEJORADA PARA NORMALIZAR LOS VALORES DE RIESGO
     const normalizarRiskLevel = (riskLevel) => {
         if (!riskLevel) return 'Sin dato';
         
         const nivel = riskLevel.toString().toLowerCase().trim();
         
-        if (nivel.includes('bajo')) return 'Bajo';
-        if (nivel.includes('moderado')) return 'Moderado';
-        if (nivel.includes('alto')) return 'Alto';
-        
+        // Mapeo completo de todos los valores posibles
+        const mapeoRiesgo = {
+            // Valores bajos
+            'bajo': 'Bajo',
+            'presión baja': 'Bajo',
+            'normal': 'Bajo', // Considerar "NORMAL" como bajo riesgo
+            'low': 'Bajo',
+            
+            // Valores moderados
+            'moderado': 'Moderado',
+            'riesgo moderado': 'Moderado',
+            'moderate': 'Moderado',
+            'medio': 'Moderado',
+            
+            // Valores altos
+            'alto': 'Alto',
+            'alto riesgo': 'Alto',
+            'high': 'Alto',
+            'elevado': 'Alto',
+            'crítico': 'Alto'
+        };
+
+        // Buscar coincidencia exacta primero
+        if (mapeoRiesgo[nivel]) {
+            return mapeoRiesgo[nivel];
+        }
+
+        // Buscar por contenido
+        for (const [key, value] of Object.entries(mapeoRiesgo)) {
+            if (nivel.includes(key)) {
+                console.log(`Coincidencia parcial: "${riskLevel}" → "${value}" (por "${key}")`);
+                return value;
+            }
+        }
+
+        console.warn(`Valor no reconocido: "${riskLevel}"`);
         return 'Otros';
     };
 
@@ -264,12 +296,13 @@ class GestorGraficos {
         'Sin dato': 0
     };
 
+    console.log('🔧 Procesando normalización...');
     this.registrosFiltrados.forEach(reg => {
         const riskLevelNormalizado = normalizarRiskLevel(reg.risk_level);
         conteoRiesgo[riskLevelNormalizado]++;
         
-        // Log para debugging
-        if (reg.risk_level && riskLevelNormalizado !== 'Sin dato') {
+        // Log para debugging (solo los primeros 5)
+        if (this.registrosFiltrados.indexOf(reg) < 5) {
             console.log(`Normalizado: "${reg.risk_level}" → "${riskLevelNormalizado}"`);
         }
     });
@@ -282,15 +315,28 @@ class GestorGraficos {
     if (datosValidos === 0) {
         console.warn('No hay datos válidos de riesgo para mostrar después de normalizar');
         
-        // Mostrar mensaje informativo en el canvas
+        // Mostrar mensaje más informativo
         const ctx2d = ctx.getContext('2d');
         ctx2d.clearRect(0, 0, ctx.width, ctx.height);
         ctx2d.font = '14px Arial';
         ctx2d.fillStyle = '#6c757d';
         ctx2d.textAlign = 'center';
-        ctx2d.fillText('No se pudieron procesar los niveles de riesgo', ctx.width / 2, ctx.height / 2 - 10);
+        
+        ctx2d.fillText('Datos de riesgo encontrados:', ctx.width / 2, ctx.height / 2 - 30);
         ctx2d.font = '12px Arial';
-        ctx2d.fillText('Formatos encontrados: ' + riskLevelsEncontrados.join(', '), ctx.width / 2, ctx.height / 2 + 10);
+        
+        // Mostrar los valores originales encontrados
+        let yOffset = -10;
+        riskLevelsEncontrados.forEach((valor, index) => {
+            if (index < 5) { // Mostrar máximo 5 valores
+                ctx2d.fillText(`• ${valor}`, ctx.width / 2, ctx.height / 2 + yOffset);
+                yOffset += 15;
+            }
+        });
+        
+        if (riskLevelsEncontrados.length > 5) {
+            ctx2d.fillText(`... y ${riskLevelsEncontrados.length - 5} más`, ctx.width / 2, ctx.height / 2 + yOffset);
+        }
         
         return;
     }
@@ -300,28 +346,26 @@ class GestorGraficos {
     const data = [];
     const backgroundColors = [];
     const colores = {
-        'Bajo': 'rgb(75, 192, 192)',
-        'Moderado': 'rgb(255, 205, 86)',
-        'Alto': 'rgb(255, 99, 132)',
-        'Otros': 'rgb(153, 102, 255)'
+        'Bajo': 'rgb(75, 192, 192)',      // Verde azulado
+        'Moderado': 'rgb(255, 205, 86)',  // Amarillo
+        'Alto': 'rgb(255, 99, 132)',      // Rojo
+        'Otros': 'rgb(153, 102, 255)'     // Púrpura
     };
 
-    if (conteoRiesgo.Bajo > 0) {
-        labels.push('Bajo');
-        data.push(conteoRiesgo.Bajo);
-        backgroundColors.push(colores.Bajo);
-    }
-    
-    if (conteoRiesgo.Moderado > 0) {
-        labels.push('Moderado');
-        data.push(conteoRiesgo.Moderado);
-        backgroundColors.push(colores.Moderado);
-    }
-    
-    if (conteoRiesgo.Alto > 0) {
-        labels.push('Alto');
-        data.push(conteoRiesgo.Alto);
-        backgroundColors.push(colores.Alto);
+    // Agregar solo las categorías que tienen datos
+    ['Bajo', 'Moderado', 'Alto'].forEach(categoria => {
+        if (conteoRiesgo[categoria] > 0) {
+            labels.push(categoria);
+            data.push(conteoRiesgo[categoria]);
+            backgroundColors.push(colores[categoria]);
+        }
+    });
+
+    // Si hay valores "Otros", incluirlos también para diagnóstico
+    if (conteoRiesgo.Otros > 0) {
+        labels.push('Otros*');
+        data.push(conteoRiesgo.Otros);
+        backgroundColors.push(colores.Otros);
     }
 
     this.chartRiesgo = new Chart(ctx, {
@@ -346,6 +390,15 @@ class GestorGraficos {
                     display: true,
                     text: 'Distribución de Niveles de Riesgo'
                 },
+                subtitle: {
+                    display: conteoRiesgo.Otros > 0,
+                    text: '* "Otros" incluye valores no reconocidos',
+                    position: 'bottom',
+                    font: {
+                        size: 10,
+                        style: 'italic'
+                    }
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
@@ -362,6 +415,18 @@ class GestorGraficos {
     });
 
     console.log('✅ Gráfico de riesgo creado correctamente con', datosValidos, 'registros válidos');
+    
+    // Mostrar resumen final
+    console.log('📊 RESUMEN FINAL:');
+    console.log('- Bajo:', conteoRiesgo.Bajo, 'registros');
+    console.log('- Moderado:', conteoRiesgo.Moderado, 'registros');
+    console.log('- Alto:', conteoRiesgo.Alto, 'registros');
+    if (conteoRiesgo.Otros > 0) {
+        console.log('- Otros:', conteoRiesgo.Otros, 'registros (valores no reconocidos)');
+    }
+    if (conteoRiesgo['Sin dato'] > 0) {
+        console.log('- Sin dato:', conteoRiesgo['Sin dato'], 'registros');
+    }
 }
 
 // Función para verificar la estructura de los registros
