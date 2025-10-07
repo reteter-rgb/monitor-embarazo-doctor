@@ -31,6 +31,15 @@ class GestorPacientes {
             this.formularioInicializado = true;
             console.log('✅ Eventos del formulario inicializados (sin duplicados)');
         }
+		const botonRecargar = document.getElementById('recargarPacientes');
+		if (botonRecargar) {
+			botonRecargar.addEventListener('click', function() {
+			console.log('🔄 Recarga manual de pacientes solicitada');
+        if (window.gestorPacientes) {
+            window.gestorPacientes.cargarPacientes();
+				}
+			});
+		}
     }
 
     async agregarPaciente() {
@@ -329,3 +338,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('🎯 Todos los métodos de recarga configurados');
 });
+
+// Código de diagnóstico temporal
+console.log('🔍 DIAGNÓSTICO INICIAL:');
+console.log('- gestorPacientes disponible:', typeof window.gestorPacientes !== 'undefined');
+console.log('- Elemento graficos-tab:', document.getElementById('graficos-tab'));
+console.log('- Elemento graficos:', document.getElementById('graficos'));
+console.log('- Elemento mainTabs:', document.getElementById('mainTabs'));
+console.log('- Elemento mainTabsContent:', document.getElementById('mainTabsContent'));
+
+// Probar recarga manual desde consola
+window.recargarPacientesManual = function() {
+    console.log('🔧 Recarga manual desde consola');
+    if (window.gestorPacientes) {
+        window.gestorPacientes.cargarPacientes();
+    } else {
+        console.error('gestorPacientes no disponible');
+    }
+};
