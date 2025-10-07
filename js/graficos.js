@@ -29,12 +29,15 @@ class GestorGraficos {
     }
 
 async generarGraficos() {
-    const pacienteId = document.getElementById('pacienteGrafico').value;
+    // Usar el campo oculto en lugar del input directo
+    const pacienteId = document.getElementById('pacienteGraficoId').value;
+    const inputPaciente = document.getElementById('pacienteGrafico');
     const fechaInicio = document.getElementById('fechaInicioGrafico').value;
     const fechaFin = document.getElementById('fechaFinGrafico').value;
 
     if (!pacienteId) {
-        this.mostrarMensaje('Por favor selecciona un paciente', 'error');
+        this.mostrarMensaje('Por favor selecciona un paciente válido de la lista', 'error');
+        if (inputPaciente) inputPaciente.focus();
         return;
     }
 
