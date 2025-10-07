@@ -121,7 +121,7 @@ async generarGraficos() {
 }
 
 
- crearGraficoPresion() {
+crearGraficoPresion() {
     const ctx = document.getElementById('graficoPresion');
     if (!ctx) {
         console.error('No se encontró el canvas para el gráfico de presión');
@@ -131,6 +131,7 @@ async generarGraficos() {
     // Destruir gráfico anterior si existe
     if (this.chartPresion) {
         this.chartPresion.destroy();
+        this.chartPresion = null;
     }
 
     // FORMATO CORRECTO PARA FECHAS COMO CADENA
@@ -165,7 +166,8 @@ async generarGraficos() {
                     borderColor: 'rgb(255, 99, 132)',
                     backgroundColor: 'rgba(255, 99, 132, 0.1)',
                     tension: 0.1,
-                    fill: true
+                    fill: true,
+                    borderWidth: 2
                 },
                 {
                     label: 'Presión Diastólica',
@@ -173,12 +175,14 @@ async generarGraficos() {
                     borderColor: 'rgb(54, 162, 235)',
                     backgroundColor: 'rgba(54, 162, 235, 0.1)',
                     tension: 0.1,
-                    fill: true
+                    fill: true,
+                    borderWidth: 2
                 }
             ]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 title: {
                     display: true,
@@ -211,59 +215,79 @@ async generarGraficos() {
     });
 }
 
-    crearGraficoRiesgo() {
-        const ctx = document.getElementById('graficoRiesgo');
-        if (!ctx) {
-            console.error('No se encontró el canvas para el gráfico de riesgo');
-            return;
+  crearGraficoRiesgo() {
+    const ctx = document.getElementById('graficoRiesgo');
+    if (!ctx) {
+        console.error('No se encontró el canvas para el gráfico de riesgo');
+        return;
+    }
+    
+    // Destruir gráfico anterior si existe
+    if (this.chartRiesgo) {
+        this.chartRiesgo.destroy();
+        this.chartRiesgo = null;
+    }
+
+    // Contar niveles de riesgo
+    const conteoRiesgo = {
+        'Bajo': 0,
+        'Moderado': 0,
+        'Alto': 0
+    };
+
+    this.registrosFiltrados.forEach(reg => {
+        if (conteoRiesgo.hasOwnProperty(reg.risk_level)) {
+            conteoRiesgo[reg.risk_level]++;
         }
-        
-        // Destruir gráfico anterior si existe
-        if (this.chartRiesgo) {
-            this.chartRiesgo.destroy();
-        }
+    });
 
-        // Contar niveles de riesgo
-        const conteoRiesgo = {
-            'Bajo': 0,
-            'Moderado': 0,
-            'Alto': 0
-        };
+    // Verificar que haya datos para mostrar
+    if (conteoRiesgo.Bajo === 0 && conteoRiesgo.Moderado === 0 && conteoRiesgo.Alto === 0) {
+        console.warn('No hay datos de riesgo para mostrar');
+        return;
+    }
 
-        this.registrosFiltrados.forEach(reg => {
-            if (conteoRiesgo.hasOwnProperty(reg.risk_level)) {
-                conteoRiesgo[reg.risk_level]++;
-            }
-        });
-
-        this.chartRiesgo = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Bajo', 'Moderado', 'Alto'],
-                datasets: [{
-                    data: [conteoRiesgo.Bajo, conteoRiesgo.Moderado, conteoRiesgo.Alto],
-                    backgroundColor: [
-                        'rgb(75, 192, 192)',
-                        'rgb(255, 205, 86)',
-                        'rgb(255, 99, 132)'
-                    ],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Distribución de Niveles de Riesgo'
+    this.chartRiesgo = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Bajo', 'Moderado', 'Alto'],
+            datasets: [{
+                data: [conteoRiesgo.Bajo, conteoRiesgo.Moderado, conteoRiesgo.Alto],
+                backgroundColor: [
+                    'rgb(75, 192, 192)',
+                    'rgb(255, 205, 86)',
+                    'rgb(255, 99, 132)'
+                ],
+                borderWidth: 2,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Distribución de Niveles de Riesgo'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
                     }
                 }
             }
-        });
-    }
+        }
+    });
+}
 
     generarAnalisisIA() {
         const analisisDiv = document.getElementById('analisisIA');
