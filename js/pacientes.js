@@ -1,4 +1,4 @@
-// Gestión de pacientes - VERSIÓN CORREGIDA
+// Gestión de pacientes - VERSIÓN CORREGIDA SIN JQUERY
 class GestorPacientes {
     constructor() {
         console.log('👤 GestorPacientes inicializado');
@@ -130,83 +130,62 @@ class GestorPacientes {
         });
     }
 
- actualizarSelectoresPacientes() {
-    const selectores = ['filtroPaciente', 'pacienteRegistro', 'pacienteGrafico'];
-    
-    selectores.forEach(selectorId => {
-        const select = document.getElementById(selectorId);
-        if (select) {
-            const valorActual = select.value;
-            
-            // Configurar contenido según el select
-            if (selectorId === 'filtroPaciente') {
-                select.innerHTML = '<option value="">Todos los pacientes</option>';
-            } else {
-                select.innerHTML = '<option value="">Seleccionar paciente</option>';
-            }
-            
-            // Agregar pacientes
-            this.pacientes.forEach(paciente => {
-                const option = document.createElement('option');
-                option.value = paciente.id;
-                option.textContent = paciente.name;
-                select.appendChild(option);
-            });
-
-            // Restaurar selección anterior si existe
-            if (this.pacientes.find(p => p.id === valorActual)) {
-                select.value = valorActual;
-            }
-            
-            // Inicializar bootstrap-select solo para pacienteGrafico
-            if (selectorId === 'pacienteGrafico' && typeof $.fn.selectpicker !== 'undefined') {
-                $(select).selectpicker({
-                    liveSearch: true,
-                    liveSearchPlaceholder: 'Escribe para buscar...',
-                    size: 5
+    actualizarSelectoresPacientes() {
+        const selectores = ['filtroPaciente', 'pacienteRegistro', 'pacienteGrafico'];
+        
+        selectores.forEach(selectorId => {
+            const select = document.getElementById(selectorId);
+            if (select) {
+                const valorActual = select.value;
+                
+                // Configurar contenido según el select
+                if (selectorId === 'filtroPaciente') {
+                    select.innerHTML = '<option value="">Todos los pacientes</option>';
+                } else {
+                    select.innerHTML = '<option value="">Seleccionar paciente</option>';
+                }
+                
+                // Agregar pacientes
+                this.pacientes.forEach(paciente => {
+                    const option = document.createElement('option');
+                    option.value = paciente.id;
+                    option.textContent = paciente.name;
+                    select.appendChild(option);
                 });
+
+                // Restaurar selección anterior si existe
+                if (this.pacientes.find(p => p.id === valorActual)) {
+                    select.value = valorActual;
+                }
+                
+                // Configurar búsqueda nativa para pacienteGrafico
+                if (selectorId === 'pacienteGrafico') {
+                    this.configurarBusquedaNativa(select);
+                }
             }
-        }
-    });
-}
- 
- 
-configurarBusquedaGraficos() {
-    const inputBusqueda = document.getElementById('pacienteGrafico');
-    const hiddenId = document.getElementById('pacienteGraficoId');
-    const datalist = document.getElementById('pacientesOptions');
-    
-    if (!inputBusqueda || !hiddenId || !datalist) return;
-    
-    // Evento cuando se escribe en la búsqueda
-    inputBusqueda.addEventListener('input', () => {
-        const valor = inputBusqueda.value.trim();
-        const opcion = Array.from(datalist.options).find(opt => opt.value === valor);
-        
-        if (opcion) {
-            // Encontró una opción válida, guardar el ID
-            hiddenId.value = opcion.getAttribute('data-id');
-            console.log('Paciente seleccionado:', valor, 'ID:', hiddenId.value);
-        } else {
-            // No es una opción válida, limpiar ID
-            hiddenId.value = '';
-            console.log('Búsqueda:', valor);
-        }
-    });
-    
-    // Evento cuando se pierde el foco
-    inputBusqueda.addEventListener('blur', () => {
-        const valor = inputBusqueda.value.trim();
-        const opcion = Array.from(datalist.options).find(opt => opt.value === valor);
-        
-        if (!opcion && valor !== '') {
-            // No es una opción válida, limpiar
-            inputBusqueda.value = '';
-            hiddenId.value = '';
-            this.mostrarMensaje('Por favor selecciona un paciente de la lista', 'warning');
-        }
-    });
-}
+        });
+    }
+
+    configurarBusquedaNativa(select) {
+        // Agregar evento de input para búsqueda nativa
+        select.addEventListener('input', function() {
+            const filter = this.value.toLowerCase();
+            const options = this.options;
+            
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                const text = option.textContent.toLowerCase();
+                if (text.includes(filter)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            }
+        });
+
+        // Agregar placeholder visual
+        select.setAttribute('data-placeholder', 'Escribe para buscar...');
+    }
 
     async eliminarPaciente(id) {
         if (confirm('¿Estás seguro de que quieres eliminar este paciente?')) {
