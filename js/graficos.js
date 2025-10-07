@@ -99,6 +99,8 @@ class GestorGraficos {
 
             console.log(`📊 ${this.registrosFiltrados.length} registros encontrados después del filtrado`);
 
+				this.verificarEstructuraRegistros();
+
             if (this.registrosFiltrados.length === 0) {
                 this.mostrarMensaje(
                     'No se encontraron registros para el paciente en el rango de fechas seleccionado',
@@ -221,72 +223,168 @@ class GestorGraficos {
     }
 
     crearGraficoRiesgo() {
+    // Verificar nuevamente que Chart esté disponible
+    if (typeof Chart === 'undefined') {
+        console.error('Chart no disponible en crearGraficoRiesgo');
+        return;
+    }
+
+    const ctx = document.getElementById('graficoRiesgo');
+    if (!ctx) {
+        console.error('No se encontró el canvas para el gráfico de riesgo');
+        return;
+    }
+
+    // DIAGNÓSTICO DETALLADO - Ver qué datos tenemos
+    console.log('🔍 Diagnóstico de datos para gráfico de riesgo:');
+    console.log('Total registros:', this.registrosFiltrados.length);
+    
+    // Mostrar todos los risk_levels encontrados
+    const riskLevelsEncontrados = [...new Set(this.registrosFiltrados.map(r => r.risk_level))];
+    console.log('Risk levels encontrados:', riskLevelsEncontrados);
+    
+    // Mostrar ejemplo de registros
+    if (this.registrosFiltrados.length > 0) {
+        console.log('Ejemplo de registro:', this.registrosFiltrados[0]);
+    }
+
+    // Contar niveles de riesgo - MÁS FLEXIBLE
+    const conteoRiesgo = {
+        'Bajo': 0,
+        'Moderado': 0,
+        'Alto': 0,
+        'Otros': 0, // Para valores inesperados
+        'Sin dato': 0 // Para registros sin risk_level
+    };
+
+    this.registrosFiltrados.forEach(reg => {
+        if (!reg.risk_level) {
+            conteoRiesgo['Sin dato']++;
+        } else if (conteoRiesgo.hasOwnProperty(reg.risk_level)) {
+            conteoRiesgo[reg.risk_level]++;
+        } else {
+            // Valor inesperado, contar como "Otros"
+            conteoRiesgo['Otros']++;
+            console.warn('Risk level inesperado:', reg.risk_level);
+        }
+    });
+
+    console.log('Conteo de riesgo:', conteoRiesgo);
+
+    // Verificar que haya datos para mostrar (excluyendo "Sin dato" y "Otros")
+    const datosValidos = conteoRiesgo.Bajo + conteoRiesgo.Moderado + conteoRiesgo.Alto;
+    
+    if (datosValidos === 0) {
+        console.warn('No hay datos válidos de riesgo para mostrar');
+        
+        // Mostrar mensaje informativo en el canvas
         const ctx = document.getElementById('graficoRiesgo');
-        if (!ctx) {
-            console.error('No se encontró el canvas para el gráfico de riesgo');
-            return;
+        if (ctx) {
+            const ctx2d = ctx.getContext('2d');
+            ctx2d.clearRect(0, 0, ctx.width, ctx.height);
+            ctx2d.font = '16px Arial';
+            ctx2d.fillStyle = '#6c757d';
+            ctx2d.textAlign = 'center';
+            ctx2d.fillText('No hay datos de riesgo disponibles', ctx.width / 2, ctx.height / 2);
+            ctx2d.font = '12px Arial';
+            ctx2d.fillText('Los registros no tienen niveles de riesgo definidos', ctx.width / 2, ctx.height / 2 + 20);
         }
+        
+        return;
+    }
 
-        // Contar niveles de riesgo
-        const conteoRiesgo = {
-            'Bajo': 0,
-            'Moderado': 0,
-            'Alto': 0
-        };
+    // Preparar datos para el gráfico (solo los válidos)
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
 
-        this.registrosFiltrados.forEach(reg => {
-            if (conteoRiesgo.hasOwnProperty(reg.risk_level)) {
-                conteoRiesgo[reg.risk_level]++;
-            }
-        });
+    if (conteoRiesgo.Bajo > 0) {
+        labels.push('Bajo');
+        data.push(conteoRiesgo.Bajo);
+        backgroundColors.push('rgb(75, 192, 192)');
+    }
+    
+    if (conteoRiesgo.Moderado > 0) {
+        labels.push('Moderado');
+        data.push(conteoRiesgo.Moderado);
+        backgroundColors.push('rgb(255, 205, 86)');
+    }
+    
+    if (conteoRiesgo.Alto > 0) {
+        labels.push('Alto');
+        data.push(conteoRiesgo.Alto);
+        backgroundColors.push('rgb(255, 99, 132)');
+    }
 
-        // Verificar que haya datos para mostrar
-        if (conteoRiesgo.Bajo === 0 && conteoRiesgo.Moderado === 0 && conteoRiesgo.Alto === 0) {
-            console.warn('No hay datos de riesgo para mostrar');
-            return;
-        }
+    // Si hay valores "Otros", incluirlos también
+    if (conteoRiesgo.Otros > 0) {
+        labels.push('Otros');
+        data.push(conteoRiesgo.Otros);
+        backgroundColors.push('rgb(153, 102, 255)');
+    }
 
-        this.chartRiesgo = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Bajo', 'Moderado', 'Alto'],
-                datasets: [{
-                    data: [conteoRiesgo.Bajo, conteoRiesgo.Moderado, conteoRiesgo.Alto],
-                    backgroundColor: [
-                        'rgb(75, 192, 192)',
-                        'rgb(255, 205, 86)',
-                        'rgb(255, 99, 132)'
-                    ],
-                    borderWidth: 2,
-                    hoverOffset: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Distribución de Niveles de Riesgo'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = Math.round((value / total) * 100);
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
+    this.chartRiesgo = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: backgroundColors,
+                borderWidth: 2,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Distribución de Niveles de Riesgo'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
                         }
                     }
                 }
             }
-        });
+        }
+    });
+
+    console.log('✅ Gráfico de riesgo creado correctamente con', datosValidos, 'registros válidos');
+}
+
+// Función para verificar la estructura de los registros
+verificarEstructuraRegistros() {
+    if (this.registrosFiltrados.length === 0) {
+        console.log('No hay registros para verificar');
+        return;
     }
+    
+    console.log('🔍 Verificación de estructura de registros:');
+    const primerRegistro = this.registrosFiltrados[0];
+    
+    console.log('Campos disponibles:', Object.keys(primerRegistro));
+    console.log('Ejemplo de risk_level:', primerRegistro.risk_level);
+    console.log('Tipo de risk_level:', typeof primerRegistro.risk_level);
+    
+    // Verificar todos los risk_levels únicos
+    const uniqueRiskLevels = [...new Set(this.registrosFiltrados.map(r => r.risk_level))];
+    console.log('Todos los risk_levels únicos:', uniqueRiskLevels);
+    
+    // Contar registros sin risk_level
+    const sinRiskLevel = this.registrosFiltrados.filter(r => !r.risk_level).length;
+    console.log('Registros sin risk_level:', sinRiskLevel);
+}
 
     generarAnalisisIA() {
         const analisisDiv = document.getElementById('analisisIA');
