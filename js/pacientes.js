@@ -130,41 +130,50 @@ class GestorPacientes {
         });
     }
 
-    actualizarSelectoresPacientes() {
-        const selectores = ['filtroPaciente', 'pacienteRegistro', 'pacienteGrafico'];
-        
-        selectores.forEach(selectorId => {
-            const select = document.getElementById(selectorId);
-            if (select) {
-                const valorActual = select.value;
-                
-                // Configurar contenido según el select
-                if (selectorId === 'filtroPaciente') {
-                    select.innerHTML = '<option value="">Todos los pacientes</option>';
-                } else {
-                    select.innerHTML = '<option value="">Seleccionar paciente</option>';
-                }
-                
-                // Agregar pacientes
-                this.pacientes.forEach(paciente => {
-                    const option = document.createElement('option');
-                    option.value = paciente.id;
-                    option.textContent = paciente.name;
-                    select.appendChild(option);
-                });
-
-                // Restaurar selección anterior si existe
-                if (this.pacientes.find(p => p.id === valorActual)) {
-                    select.value = valorActual;
-                }
-                
-                // Configurar búsqueda nativa para pacienteGrafico
-                if (selectorId === 'pacienteGrafico') {
-                    this.configurarBusquedaNativa(select);
-                }
+   actualizarSelectoresPacientes() {
+    const selectores = ['filtroPaciente', 'pacienteRegistro', 'pacienteGrafico'];
+    
+    selectores.forEach(selectorId => {
+        const select = document.getElementById(selectorId);
+        if (select) {
+            const valorActual = select.value;
+            const esMultiple = select.multiple;
+            
+            // Configurar contenido según el select
+            if (selectorId === 'filtroPaciente') {
+                select.innerHTML = '<option value="">Todos los pacientes</option>';
+            } else {
+                select.innerHTML = '<option value="">Seleccionar paciente</option>';
             }
-        });
-    }
+            
+            // Agregar pacientes
+            this.pacientes.forEach(paciente => {
+                const option = document.createElement('option');
+                option.value = paciente.id;
+                option.textContent = paciente.name;
+                
+                // Si es múltiple, mantener seleccionados
+                if (esMultiple && Array.isArray(valorActual) && valorActual.includes(paciente.id)) {
+                    option.selected = true;
+                }
+                
+                select.appendChild(option);
+            });
+
+            // Restaurar selección anterior si existe (solo para selects simples)
+            if (!esMultiple && this.pacientes.find(p => p.id === valorActual)) {
+                select.value = valorActual;
+            }
+            
+            // Configurar búsqueda nativa para pacienteGrafico
+            if (selectorId === 'pacienteGrafico') {
+                this.configurarBusquedaNativa(select);
+            }
+        }
+    });
+    
+    console.log(`✅ Selectores actualizados con ${this.pacientes.length} pacientes`);
+}
 
     configurarBusquedaNativa(select) {
         // Agregar evento de input para búsqueda nativa
@@ -227,3 +236,34 @@ if (typeof window !== 'undefined') {
     window.GestorPacientes = GestorPacientes;
     console.log('✅ GestorPacientes disponible globalmente');
 }
+// Actualizar selectores cuando se cambia a la pestaña de Gráficos
+document.addEventListener('DOMContentLoaded', function() {
+    const graficosTab = document.getElementById('graficos-tab');
+    if (graficosTab) {
+        graficosTab.addEventListener('click', function() {
+            console.log('📊 Pestaña de Gráficos activada - Actualizando selectores...');
+            // Esperar un poco para que la pestaña se active completamente
+            setTimeout(() => {
+                if (window.gestorPacientes) {
+                    window.gestorPacientes.actualizarSelectoresPacientes();
+                    console.log('✅ Selectores de gráficos actualizados');
+                }
+            }, 300);
+        });
+    }
+    
+    // También actualizar cuando se usa el mouse o teclado para cambiar pestañas
+    const mainTabs = document.getElementById('mainTabs');
+    if (mainTabs) {
+        mainTabs.addEventListener('shown.bs.tab', function(event) {
+            if (event.target.id === 'graficos-tab') {
+                console.log('📊 Pestaña de Gráficos mostrada - Actualizando selectores...');
+                setTimeout(() => {
+                    if (window.gestorPacientes) {
+                        window.gestorPacientes.actualizarSelectoresPacientes();
+                    }
+                }, 100);
+            }
+        });
+    }
+});
