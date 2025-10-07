@@ -130,29 +130,83 @@ class GestorPacientes {
         });
     }
 
-    actualizarSelectoresPacientes() {
-        const selectores = ['filtroPaciente', 'pacienteRegistro', 'pacienteGrafico'];
-        selectores.forEach(selectorId => {
-            const select = document.getElementById(selectorId);
-            if (select) {
-                const valorActual = select.value;
-                select.innerHTML = selectorId === 'filtroPaciente' 
-                    ? '<option value="">Todos los pacientes</option>'
-                    : '<option value="">Seleccionar paciente</option>';
-                
-                this.pacientes.forEach(paciente => {
-                    const option = document.createElement('option');
-                    option.value = paciente.id;
-                    option.textContent = paciente.name;
-                    select.appendChild(option);
-                });
+  actualizarSelectoresPacientes() {
+    const selectores = ['filtroPaciente', 'pacienteRegistro'];
+    const busquedaGrafico = document.getElementById('pacientesOptions');
+    
+    // Actualizar selects normales
+    selectores.forEach(selectorId => {
+        const select = document.getElementById(selectorId);
+        if (select) {
+            const valorActual = select.value;
+            select.innerHTML = selectorId === 'filtroPaciente' 
+                ? '<option value="">Todos los pacientes</option>'
+                : '<option value="">Seleccionar paciente</option>';
+            
+            this.pacientes.forEach(paciente => {
+                const option = document.createElement('option');
+                option.value = paciente.id;
+                option.textContent = paciente.name;
+                select.appendChild(option);
+            });
 
-                if (this.pacientes.find(p => p.id === valorActual)) {
-                    select.value = valorActual;
-                }
+            if (this.pacientes.find(p => p.id === valorActual)) {
+                select.value = valorActual;
             }
+        }
+    });
+    
+    // Actualizar datalist para búsqueda en gráficos
+    if (busquedaGrafico) {
+        busquedaGrafico.innerHTML = '';
+        this.pacientes.forEach(paciente => {
+            const option = document.createElement('option');
+            option.value = paciente.name;
+            option.setAttribute('data-id', paciente.id);
+            busquedaGrafico.appendChild(option);
         });
     }
+    
+    // Configurar evento para la búsqueda en gráficos
+    this.configurarBusquedaGraficos();
+}
+
+configurarBusquedaGraficos() {
+    const inputBusqueda = document.getElementById('pacienteGrafico');
+    const hiddenId = document.getElementById('pacienteGraficoId');
+    const datalist = document.getElementById('pacientesOptions');
+    
+    if (!inputBusqueda || !hiddenId || !datalist) return;
+    
+    // Evento cuando se escribe en la búsqueda
+    inputBusqueda.addEventListener('input', () => {
+        const valor = inputBusqueda.value.trim();
+        const opcion = Array.from(datalist.options).find(opt => opt.value === valor);
+        
+        if (opcion) {
+            // Encontró una opción válida, guardar el ID
+            hiddenId.value = opcion.getAttribute('data-id');
+            console.log('Paciente seleccionado:', valor, 'ID:', hiddenId.value);
+        } else {
+            // No es una opción válida, limpiar ID
+            hiddenId.value = '';
+            console.log('Búsqueda:', valor);
+        }
+    });
+    
+    // Evento cuando se pierde el foco
+    inputBusqueda.addEventListener('blur', () => {
+        const valor = inputBusqueda.value.trim();
+        const opcion = Array.from(datalist.options).find(opt => opt.value === valor);
+        
+        if (!opcion && valor !== '') {
+            // No es una opción válida, limpiar
+            inputBusqueda.value = '';
+            hiddenId.value = '';
+            this.mostrarMensaje('Por favor selecciona un paciente de la lista', 'warning');
+        }
+    });
+}
 
     async eliminarPaciente(id) {
         if (confirm('¿Estás seguro de que quieres eliminar este paciente?')) {
