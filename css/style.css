@@ -121,3 +121,29 @@ datalist {
     color: #6c757d;
     opacity: 0.7;
 }
+/* Estilos para Bootstrap Select */
+.bootstrap-select .btn {
+    background-color: white;
+    border: 1px solid #ced4da;
+}
+
+.bootstrap-select .dropdown-menu {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.bootstrap-select .bs-searchbox {
+    padding: 8px;
+}
+
+/* Mejorar visualización de gráficos */
+.card-body canvas {
+    max-height: 300px;
+}
+
+/* Asegurar que los gráficos sean responsivos */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
