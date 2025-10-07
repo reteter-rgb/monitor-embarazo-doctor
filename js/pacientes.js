@@ -77,30 +77,31 @@ class GestorPacientes {
         }
     }
 
-    async cargarPacientes() {
-        console.log('Cargando pacientes desde Firebase...');
+ async cargarPacientes() {
+    console.log('Cargando pacientes desde Firebase...');
+    
+    try {
+        const snapshot = await db.collection('patients').orderBy('created_at', 'desc').get();
+        console.log('Pacientes encontrados:', snapshot.size);
         
-        try {
-            const snapshot = await db.collection('patients').orderBy('created_at', 'desc').get();
-            console.log('Pacientes encontrados:', snapshot.size);
-            
-            this.pacientes = [];
-            snapshot.forEach(doc => {
-                this.pacientes.push({
-                    id: doc.id,
-                    ...doc.data()
-                });
+        this.pacientes = [];
+        snapshot.forEach(doc => {
+            this.pacientes.push({
+                id: doc.id,
+                ...doc.data()
             });
+        });
 
-            this.mostrarPacientes();
-            this.actualizarSelectoresPacientes();
-            
-        } catch (error) {
-            console.error('Error al cargar pacientes:', error);
-            this.mostrarMensaje('Error al cargar pacientes: ' + error.message, 'error');
-        }
+        this.mostrarPacientes();
+        this.actualizarSelectoresPacientes();
+        
+        console.log('✅ Lista de pacientes actualizada correctamente');
+        
+    } catch (error) {
+        console.error('Error al cargar pacientes:', error);
+        this.mostrarMensaje('Error al cargar pacientes: ' + error.message, 'error');
     }
-
+}
     mostrarPacientes() {
         const tbody = document.getElementById('listaPacientes');
         if (!tbody) return;
@@ -238,32 +239,33 @@ if (typeof window !== 'undefined') {
 }
 // Actualizar selectores cuando se cambia a la pestaña de Gráficos
 document.addEventListener('DOMContentLoaded', function() {
-    const graficosTab = document.getElementById('graficos-tab');
-    if (graficosTab) {
-        graficosTab.addEventListener('click', function() {
-            console.log('📊 Pestaña de Gráficos activada - Actualizando selectores...');
-            // Esperar un poco para que la pestaña se active completamente
-            setTimeout(() => {
-                if (window.gestorPacientes) {
-                    window.gestorPacientes.actualizarSelectoresPacientes();
-                    console.log('✅ Selectores de gráficos actualizados');
-                }
-            }, 300);
-        });
-    }
-    
-    // También actualizar cuando se usa el mouse o teclado para cambiar pestañas
+    // Observar cambios en las pestañas
     const mainTabs = document.getElementById('mainTabs');
     if (mainTabs) {
         mainTabs.addEventListener('shown.bs.tab', function(event) {
+            console.log('🔄 Pestaña activada:', event.target.id);
+            
             if (event.target.id === 'graficos-tab') {
-                console.log('📊 Pestaña de Gráficos mostrada - Actualizando selectores...');
+                console.log('📊 Pestaña de Gráficos activada - Recargando pacientes...');
+                
+                // Esperar a que la animación termine y luego recargar
                 setTimeout(() => {
                     if (window.gestorPacientes) {
-                        window.gestorPacientes.actualizarSelectoresPacientes();
+                        // Recargar TODOS los pacientes desde Firebase
+                        window.gestorPacientes.cargarPacientes();
+                        console.log('✅ Pacientes recargados para gráficos');
                     }
-                }, 100);
+                }, 500);
             }
+        });
+    }
+    
+    // También actualizar cuando se hace clic directamente en la pestaña
+    const graficosTab = document.getElementById('graficos-tab');
+    if (graficosTab) {
+        graficosTab.addEventListener('click', function() {
+            console.log('🎯 Clic en pestaña Gráficos - Programando recarga...');
+            // La recarga se manejará por el evento shown.bs.tab
         });
     }
 });
