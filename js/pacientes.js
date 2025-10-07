@@ -77,12 +77,12 @@ class GestorPacientes {
         }
     }
 
- async cargarPacientes() {
-    console.log('Cargando pacientes desde Firebase...');
+async cargarPacientes() {
+    console.log('🔄 Cargando pacientes desde Firebase...');
     
     try {
         const snapshot = await db.collection('patients').orderBy('created_at', 'desc').get();
-        console.log('Pacientes encontrados:', snapshot.size);
+        console.log('📋 Pacientes encontrados:', snapshot.size);
         
         this.pacientes = [];
         snapshot.forEach(doc => {
@@ -96,12 +96,17 @@ class GestorPacientes {
         this.actualizarSelectoresPacientes();
         
         console.log('✅ Lista de pacientes actualizada correctamente');
+        return this.pacientes; // Devolver la lista para then()
         
     } catch (error) {
-        console.error('Error al cargar pacientes:', error);
+        console.error('❌ Error al cargar pacientes:', error);
         this.mostrarMensaje('Error al cargar pacientes: ' + error.message, 'error');
+        throw error; // Propagar el error
     }
 }
+
+
+
     mostrarPacientes() {
         const tbody = document.getElementById('listaPacientes');
         if (!tbody) return;
@@ -237,35 +242,90 @@ if (typeof window !== 'undefined') {
     window.GestorPacientes = GestorPacientes;
     console.log('✅ GestorPacientes disponible globalmente');
 }
-// Actualizar selectores cuando se cambia a la pestaña de Gráficos
+// Actualizar selectores cuando se cambia a la pestaña de Gráficos - VERSIÓN MEJORADA
 document.addEventListener('DOMContentLoaded', function() {
-    // Observar cambios en las pestañas
-    const mainTabs = document.getElementById('mainTabs');
-    if (mainTabs) {
-        mainTabs.addEventListener('shown.bs.tab', function(event) {
-            console.log('🔄 Pestaña activada:', event.target.id);
-            
-            if (event.target.id === 'graficos-tab') {
-                console.log('📊 Pestaña de Gráficos activada - Recargando pacientes...');
-                
-                // Esperar a que la animación termine y luego recargar
-                setTimeout(() => {
-                    if (window.gestorPacientes) {
-                        // Recargar TODOS los pacientes desde Firebase
-                        window.gestorPacientes.cargarPacientes();
-                        console.log('✅ Pacientes recargados para gráficos');
-                    }
-                }, 500);
+    console.log('🎯 Configurando observador de pestañas...');
+    
+    // Función para recargar pacientes en gráficos
+    function recargarPacientesEnGraficos() {
+        console.log('🔄 Solicitando recarga de pacientes para gráficos...');
+        
+        if (window.gestorPacientes) {
+            // Forzar recarga desde Firebase
+            window.gestorPacientes.cargarPacientes().then(() => {
+                console.log('✅ Pacientes recargados exitosamente para gráficos');
+            }).catch(error => {
+                console.error('❌ Error recargando pacientes:', error);
+            });
+        } else {
+            console.warn('⚠️ gestorPacientes no disponible aún');
+            // Reintentar en 1 segundo
+            setTimeout(recargarPacientesEnGraficos, 1000);
+        }
+    }
+
+    // MÉTODO 1: Usar MutationObserver para detectar cambios de clase
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                const target = mutation.target;
+                // Verificar si la pestaña de gráficos se volvió activa
+                if (target.id === 'graficos' && target.classList.contains('active') && target.classList.contains('show')) {
+                    console.log('🎯 MutationObserver: Pestaña Gráficos activada');
+                    setTimeout(recargarPacientesEnGraficos, 300);
+                }
             }
         });
+    });
+
+    // Observar el contenedor de pestañas
+    const tabContent = document.getElementById('mainTabsContent');
+    if (tabContent) {
+        observer.observe(tabContent, {
+            attributes: true,
+            subtree: true,
+            attributeFilter: ['class']
+        });
+        console.log('✅ MutationObserver configurado');
     }
-    
-    // También actualizar cuando se hace clic directamente en la pestaña
+
+    // MÉTODO 2: Eventos de Bootstrap (backup)
     const graficosTab = document.getElementById('graficos-tab');
     if (graficosTab) {
         graficosTab.addEventListener('click', function() {
-            console.log('🎯 Clic en pestaña Gráficos - Programando recarga...');
-            // La recarga se manejará por el evento shown.bs.tab
+            console.log('🎯 Click en pestaña Gráficos');
+            // Pequeño delay para asegurar que la pestaña se active
+            setTimeout(recargarPacientesEnGraficos, 500);
         });
     }
+
+    // MÉTODO 3: Evento shown.bs.tab de Bootstrap
+    const mainTabs = document.getElementById('mainTabs');
+    if (mainTabs) {
+        mainTabs.addEventListener('shown.bs.tab', function(event) {
+            console.log('🎯 Bootstrap tab shown:', event.target.id);
+            if (event.target.id === 'graficos-tab') {
+                console.log('📊 Pestaña Gráficos mostrada - Recargando pacientes...');
+                setTimeout(recargarPacientesEnGraficos, 400);
+            }
+        });
+    }
+
+    // MÉTODO 4: Verificar periódicamente si estamos en la pestaña de gráficos
+    let ultimaPestaña = '';
+    setInterval(() => {
+        const graficosPane = document.getElementById('graficos');
+        if (graficosPane && graficosPane.classList.contains('active') && graficosPane.classList.contains('show')) {
+            if (ultimaPestaña !== 'graficos') {
+                console.log('⏰ Check periódico: En pestaña Gráficos');
+                ultimaPestaña = 'graficos';
+                // Recargar solo si no se ha recargado recientemente
+                recargarPacientesEnGraficos();
+            }
+        } else {
+            ultimaPestaña = '';
+        }
+    }, 2000);
+
+    console.log('🎯 Todos los métodos de recarga configurados');
 });
