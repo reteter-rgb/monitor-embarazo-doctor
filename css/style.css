@@ -104,3 +104,20 @@ body {
 .table td {
     font-size: 0.9rem;
 }
+/* Estilos para búsqueda de pacientes */
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Mejorar datalist */
+datalist {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Estilo para el placeholder */
+.form-control::placeholder {
+    color: #6c757d;
+    opacity: 0.7;
+}
