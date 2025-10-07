@@ -219,11 +219,18 @@
                         <!-- Filtros para gráficos -->
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label for="pacienteGrafico" class="form-label">Paciente</label>
-                                <select class="form-select" id="pacienteGrafico" required>
-                                    <option value="">Seleccionar paciente</option>
-                                </select>
-                            </div>
+    <label for="pacienteGrafico" class="form-label">Paciente</label>
+    
+    <!-- Input con datalist para búsqueda -->
+    <input class="form-control" list="pacientesOptions" id="pacienteGrafico" 
+           placeholder="Escribe para buscar paciente..." autocomplete="off">
+    <datalist id="pacientesOptions">
+        <!-- Las opciones se llenarán automáticamente -->
+    </datalist>
+    
+    <!-- Campo oculto para guardar el ID del paciente -->
+    <input type="hidden" id="pacienteGraficoId">
+</div>
                             <div class="col-md-3">
                                 <label for="fechaInicioGrafico" class="form-label">Fecha inicio</label>
                                 <input type="date" class="form-control" id="fechaInicioGrafico">
