@@ -28,50 +28,82 @@ class GestorGraficos {
         if (fechaFinInput) fechaFinInput.value = fechaFin.toISOString().split('T')[0];
     }
 
-    async generarGraficos() {
-        // Usar el select directamente (SIN jQuery)
-        const selectPaciente = document.getElementById('pacienteGrafico');
-        const pacienteId = selectPaciente ? selectPaciente.value : '';
-        const fechaInicio = document.getElementById('fechaInicioGrafico').value;
-        const fechaFin = document.getElementById('fechaFinGrafico').value;
+   async generarGraficos() {
+    // Verificar Chart.js primero
+    if (!this.verificarChartJS()) {
+        return;
+    }
 
-        if (!pacienteId) {
-            this.mostrarMensaje('Por favor selecciona un paciente', 'error');
-            if (selectPaciente) selectPaciente.focus();
-            return;
-        }
+    // Usar el select directamente
+    const selectPaciente = document.getElementById('pacienteGrafico');
+    const pacienteId = selectPaciente ? selectPaciente.value : '';
+    const fechaInicio = document.getElementById('fechaInicioGrafico').value;
+    const fechaFin = document.getElementById('fechaFinGrafico').value;
 
-        try {
-            console.log('🔍 Buscando registros para paciente ID:', pacienteId);
+    if (!pacienteId) {
+        this.mostrarMensaje('Por favor selecciona un paciente', 'error');
+        if (selectPaciente) selectPaciente.focus();
+        return;
+    }
+
+    try {
+        console.log('🔍 Buscando registros para paciente ID:', pacienteId);
+        
+        // Obtener TODOS los registros del paciente
+        const snapshot = await db.collection('daily_records')
+            .where('patient_id', '==', pacienteId)
+            .get();
             
-            // Obtener TODOS los registros del paciente
-            const snapshot = await db.collection('daily_records')
-                .where('patient_id', '==', pacienteId)
-                .get();
-                
-            this.registrosFiltrados = [];
+        this.registrosFiltrados = [];
+        
+        snapshot.forEach(doc => {
+            const registro = {
+                id: doc.id,
+                ...doc.data()
+            };
             
-            snapshot.forEach(doc => {
-                const registro = {
-                    id: doc.id,
-                    ...doc.data()
-                };
-                
-                // Convertir fecha de cadena a objeto Date para filtrado
-                let fechaRegistro;
-                if (registro.date) {
+            // Convertir fecha de cadena a objeto Date para filtrado - VERSIÓN MEJORADA
+            let fechaRegistro;
+            if (registro.date) {
+                try {
+                    // Intentar diferentes formatos de fecha
                     if (registro.date.includes('T')) {
+                        // Formato ISO: "2024-01-15T00:00:00.000Z"
                         fechaRegistro = new Date(registro.date);
-                    } else {
+                    } else if (registro.date.includes('/')) {
+                        // Formato DD/MM/YYYY o DD/MM/YYYY HH:mm
+                        const dateParts = registro.date.split(' ')[0].split('/'); // Tomar solo la parte de la fecha
+                        if (dateParts.length === 3) {
+                            const [day, month, year] = dateParts;
+                            fechaRegistro = new Date(year, month - 1, day);
+                        } else {
+                            console.warn('Formato de fecha no reconocido:', registro.date);
+                            fechaRegistro = new Date(registro.date); // Intentar parsing nativo
+                        }
+                    } else if (registro.date.includes('-')) {
                         // Formato YYYY-MM-DD
                         const [year, month, day] = registro.date.split('-');
                         fechaRegistro = new Date(year, month - 1, day);
+                    } else {
+                        // Intentar parsing nativo como último recurso
+                        fechaRegistro = new Date(registro.date);
                     }
+                    
+                    // Verificar que la fecha sea válida
+                    if (isNaN(fechaRegistro.getTime())) {
+                        console.warn('Fecha inválida después del parsing:', registro.date);
+                        fechaRegistro = null;
+                    }
+                } catch (error) {
+                    console.error('Error parseando fecha:', registro.date, error);
+                    fechaRegistro = null;
                 }
-                
-                // Aplicar filtros de fecha
-                let incluirRegistro = true;
-                
+            }
+            
+            // Aplicar filtros de fecha solo si tenemos fecha válida
+            let incluirRegistro = true;
+            
+            if (fechaRegistro) {
                 if (fechaInicio) {
                     const fechaInicioObj = new Date(fechaInicio);
                     if (fechaRegistro < fechaInicioObj) {
@@ -86,53 +118,57 @@ class GestorGraficos {
                         incluirRegistro = false;
                     }
                 }
-                
-                if (incluirRegistro) {
-                    // Guardar también la fecha como Date para ordenamiento
-                    registro.fechaDate = fechaRegistro;
-                    this.registrosFiltrados.push(registro);
-                }
-            });
-
-            // Ordenar por fecha
-            this.registrosFiltrados.sort((a, b) => a.fechaDate - b.fechaDate);
-
-            console.log(`📊 ${this.registrosFiltrados.length} registros encontrados después del filtrado`);
-
-				this.verificarEstructuraRegistros();
-
-            if (this.registrosFiltrados.length === 0) {
-                this.mostrarMensaje(
-                    'No se encontraron registros para el paciente en el rango de fechas seleccionado',
-                    'warning'
-                );
-                return;
             }
-
-            // DESTRUIR GRÁFICOS ANTERIORES ANTES DE CREAR NUEVOS
-            if (this.chartPresion) {
-                this.chartPresion.destroy();
-                this.chartPresion = null;
+            
+            if (incluirRegistro) {
+                // Guardar también la fecha como Date para ordenamiento
+                registro.fechaDate = fechaRegistro;
+                this.registrosFiltrados.push(registro);
             }
-            if (this.chartRiesgo) {
-                this.chartRiesgo.destroy();
-                this.chartRiesgo = null;
-            }
+        });
 
-            this.crearGraficoPresion();
-            this.crearGraficoRiesgo();
-            this.generarAnalisisIA();
+        // Ordenar por fecha (los que no tienen fecha van al final)
+        this.registrosFiltrados.sort((a, b) => {
+            if (!a.fechaDate && !b.fechaDate) return 0;
+            if (!a.fechaDate) return 1;
+            if (!b.fechaDate) return -1;
+            return a.fechaDate - b.fechaDate;
+        });
 
+        console.log(`📊 ${this.registrosFiltrados.length} registros encontrados después del filtrado`);
+
+        if (this.registrosFiltrados.length === 0) {
             this.mostrarMensaje(
-                `✅ Gráficos generados con ${this.registrosFiltrados.length} registros`,
-                'success'
+                'No se encontraron registros para el paciente en el rango de fechas seleccionado',
+                'warning'
             );
-
-        } catch (error) {
-            console.error('Error al generar gráficos:', error);
-            this.mostrarMensaje('Error al generar gráficos: ' + error.message, 'error');
+            return;
         }
+
+        // DESTRUIR GRÁFICOS ANTERIORES ANTES DE CREAR NUEVOS
+        if (this.chartPresion) {
+            this.chartPresion.destroy();
+            this.chartPresion = null;
+        }
+        if (this.chartRiesgo) {
+            this.chartRiesgo.destroy();
+            this.chartRiesgo = null;
+        }
+
+        this.crearGraficoPresion();
+        this.crearGraficoRiesgo();
+        this.generarAnalisisIA();
+
+        this.mostrarMensaje(
+            `✅ Gráficos generados con ${this.registrosFiltrados.length} registros`,
+            'success'
+        );
+
+    } catch (error) {
+        console.error('Error al generar gráficos:', error);
+        this.mostrarMensaje('Error al generar gráficos: ' + error.message, 'error');
     }
+}
 
  crearGraficoPresion() {
     // Verificar nuevamente que Chart esté disponible
@@ -155,22 +191,30 @@ class GestorGraficos {
     console.log('📅 Registros ordenados por fecha:', registrosOrdenados.map(r => r.date));
 
     // FORMATO CORRECTO PARA FECHAS COMO CADENA (YA ORDENADAS)
-    const fechas = registrosOrdenados.map(reg => {
-        if (!reg.date) return 'Fecha inválida';
-        
-        try {
-            if (reg.date.includes('T')) {
-                // Formato ISO
-                return new Date(reg.date).toLocaleDateString('es-ES');
-            } else {
-                // Formato YYYY-MM-DD
-                const [year, month, day] = reg.date.split('-');
-                return `${day}/${month}/${year}`;
-            }
-        } catch (e) {
-            return reg.date; // Devolver la cadena original si hay error
+   // FORMATO CORRECTO PARA FECHAS COMO CADENA (YA ORDENADAS)
+const fechas = registrosOrdenados.map(reg => {
+    if (!reg.date) return 'Fecha inválida';
+    
+    try {
+        if (reg.date.includes('T')) {
+            // Formato ISO
+            return new Date(reg.date).toLocaleDateString('es-ES');
+        } else if (reg.date.includes('/')) {
+            // Formato DD/MM/YYYY o DD/MM/YYYY HH:mm - mostrar solo fecha
+            const datePart = reg.date.split(' ')[0]; // Tomar solo la parte de la fecha
+            return datePart; // Ya está en formato DD/MM/YYYY
+        } else if (reg.date.includes('-')) {
+            // Formato YYYY-MM-DD - convertir a DD/MM/YYYY
+            const [year, month, day] = reg.date.split('-');
+            return `${day}/${month}/${year}`;
+        } else {
+            return reg.date; // Devolver la cadena original
         }
-    });
+    } catch (e) {
+        console.warn('Error formateando fecha:', reg.date, e);
+        return reg.date; // Devolver la cadena original si hay error
+    }
+});
     
     const sistolicas = registrosOrdenados.map(reg => reg.systolic);
     const diastolicas = registrosOrdenados.map(reg => reg.diastolic);
