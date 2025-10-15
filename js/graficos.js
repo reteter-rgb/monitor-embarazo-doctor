@@ -134,93 +134,108 @@ class GestorGraficos {
         }
     }
 
-    crearGraficoPresion() {
-        const ctx = document.getElementById('graficoPresion');
-        if (!ctx) {
-            console.error('No se encontró el canvas para el gráfico de presión');
-            return;
-        }
-        
-        // FORMATO CORRECTO PARA FECHAS COMO CADENA
-        const fechas = this.registrosFiltrados.map(reg => {
-            if (!reg.date) return 'Fecha inválida';
-            
-            try {
-                if (reg.date.includes('T')) {
-                    // Formato ISO
-                    return new Date(reg.date).toLocaleDateString('es-ES');
-                } else {
-                    // Formato YYYY-MM-DD
-                    const [year, month, day] = reg.date.split('-');
-                    return `${day}/${month}/${year}`;
-                }
-            } catch (e) {
-                return reg.date; // Devolver la cadena original si hay error
-            }
-        });
-        
-        const sistolicas = this.registrosFiltrados.map(reg => reg.systolic);
-        const diastolicas = this.registrosFiltrados.map(reg => reg.diastolic);
+ crearGraficoPresion() {
+    // Verificar nuevamente que Chart esté disponible
+    if (typeof Chart === 'undefined') {
+        console.error('Chart no disponible en crearGraficoPresion');
+        return;
+    }
 
-        this.chartPresion = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: fechas,
-                datasets: [
-                    {
-                        label: 'Presión Sistólica',
-                        data: sistolicas,
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                        tension: 0.1,
-                        fill: true,
-                        borderWidth: 2
-                    },
-                    {
-                        label: 'Presión Diastólica',
-                        data: diastolicas,
-                        borderColor: 'rgb(54, 162, 235)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                        tension: 0.1,
-                        fill: true,
-                        borderWidth: 2
-                    }
-                ]
+    const ctx = document.getElementById('graficoPresion');
+    if (!ctx) {
+        console.error('No se encontró el canvas para el gráfico de presión');
+        return;
+    }
+    
+    // CREAR COPIA ORDENADA POR FECHA
+    const registrosOrdenados = [...this.registrosFiltrados].sort((a, b) => {
+        return a.fechaDate - b.fechaDate;
+    });
+
+    console.log('📅 Registros ordenados por fecha:', registrosOrdenados.map(r => r.date));
+
+    // FORMATO CORRECTO PARA FECHAS COMO CADENA (YA ORDENADAS)
+    const fechas = registrosOrdenados.map(reg => {
+        if (!reg.date) return 'Fecha inválida';
+        
+        try {
+            if (reg.date.includes('T')) {
+                // Formato ISO
+                return new Date(reg.date).toLocaleDateString('es-ES');
+            } else {
+                // Formato YYYY-MM-DD
+                const [year, month, day] = reg.date.split('-');
+                return `${day}/${month}/${year}`;
+            }
+        } catch (e) {
+            return reg.date; // Devolver la cadena original si hay error
+        }
+    });
+    
+    const sistolicas = registrosOrdenados.map(reg => reg.systolic);
+    const diastolicas = registrosOrdenados.map(reg => reg.diastolic);
+
+    this.chartPresion = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: fechas,
+            datasets: [
+                {
+                    label: 'Presión Sistólica',
+                    data: sistolicas,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1,
+                    fill: true,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Presión Diastólica',
+                    data: diastolicas,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1,
+                    fill: true,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Evolución de la Presión Arterial'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
+            scales: {
+                x: {
+                    display: true,
                     title: {
                         display: true,
-                        text: 'Evolución de la Presión Arterial'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
+                        text: 'Fecha'
                     }
                 },
-                scales: {
-                    x: {
+                y: {
+                    display: true,
+                    title: {
                         display: true,
-                        title: {
-                            display: true,
-                            text: 'Fecha'
-                        }
+                        text: 'Presión (mmHg)'
                     },
-                    y: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: 'Presión (mmHg)'
-                        },
-                        suggestedMin: Math.min(...sistolicas, ...diastolicas) - 10,
-                        suggestedMax: Math.max(...sistolicas, ...diastolicas) + 10
-                    }
+                    suggestedMin: Math.min(...sistolicas, ...diastolicas) - 10,
+                    suggestedMax: Math.max(...sistolicas, ...diastolicas) + 10
                 }
             }
-        });
-    }
+        }
+    });
+
+    console.log('✅ Gráfico de presión creado correctamente con fechas ordenadas');
+}
 
    crearGraficoRiesgo() {
     // Verificar nuevamente que Chart esté disponible
