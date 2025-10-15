@@ -7,6 +7,20 @@ class GestorGraficos {
         
         this.inicializarEventos();
     }
+	
+	verificarChartJS() {
+    if (typeof Chart === 'undefined') {
+        console.error('❌ Chart.js no está disponible');
+        this.mostrarMensaje(
+            'Error: La librería de gráficos no se cargó correctamente. ' +
+            'Por favor recarga la página.',
+            'error'
+        );
+        return false;
+    }
+    console.log('✅ Chart.js disponible - Versión:', Chart.version);
+    return true;
+}
 
     inicializarEventos() {
         const botonGenerar = document.getElementById('generarGrafico');
