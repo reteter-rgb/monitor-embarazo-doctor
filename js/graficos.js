@@ -4,7 +4,7 @@ class GestorGraficos {
         this.chartPresion = null;
         this.chartRiesgo = null;
         this.registrosFiltrados = [];
-        this.verificarChartJS();
+     
         this.inicializarEventos();
     }
 	
@@ -43,8 +43,14 @@ class GestorGraficos {
     }
 
    async generarGraficos() {
-    // Verificar Chart.js primero
-    if (!this.verificarChartJS()) {
+    // Verificación simple de Chart.js
+    if (typeof Chart === 'undefined') {
+        console.error('❌ Chart.js no está disponible');
+        this.mostrarMensaje(
+            'Error: La librería de gráficos no se cargó correctamente. ' +
+            'Por favor recarga la página.',
+            'error'
+        );
         return;
     }
 
