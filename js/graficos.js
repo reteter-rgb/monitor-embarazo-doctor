@@ -4,7 +4,7 @@ class GestorGraficos {
         this.chartPresion = null;
         this.chartRiesgo = null;
         this.registrosFiltrados = [];
-        
+        this.verificarChartJS();
         this.inicializarEventos();
     }
 	
