@@ -38,7 +38,7 @@ body {
     font-weight: 600;
 }
 
-/* Estilos para badges de riesgo */
+/* Estilos para badges de riesgo - TEXTO NEGRO */
 .badge.risk-bajo {
     background-color: #28a745 !important;
     color: #000000 !important; /* Texto negro */
@@ -59,10 +59,11 @@ body {
 
 .badge.risk-alto {
     background-color: #dc3545 !important;
-    color: white !important;
+    color: #000000 !important; /* Texto negro */
     padding: 0.35em 0.65em;
     font-size: 0.75em;
     font-weight: 700;
+    border: 1px solid #c82333; /* Borde para mejor contraste */
 }
 
 /* Mejorar tabla de registros */
