@@ -41,18 +41,20 @@ body {
 /* Estilos para badges de riesgo */
 .badge.risk-bajo {
     background-color: #28a745 !important;
-    color: white !important;
+    color: #000000 !important; /* Texto negro */
     padding: 0.35em 0.65em;
     font-size: 0.75em;
     font-weight: 700;
+    border: 1px solid #1e7e34; /* Borde para mejor contraste */
 }
 
 .badge.risk-moderado {
     background-color: #ffc107 !important;
-    color: #212529 !important;
+    color: #000000 !important; /* Texto negro */
     padding: 0.35em 0.65em;
     font-size: 0.75em;
     font-weight: 700;
+    border: 1px solid #e0a800; /* Borde para mejor contraste */
 }
 
 .badge.risk-alto {
