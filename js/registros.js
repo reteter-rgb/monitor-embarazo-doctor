@@ -194,18 +194,18 @@ class GestorRegistros {
             }
         }
         
-        tr.innerHTML = `
-            <td><strong>${nombrePaciente}</strong></td>
-            <td>${fechaFormateada}</td>
-            <td><span class="badge bg-dark">${registro.systolic}/${registro.diastolic}</span></td>
-            <td><span class="badge ${claseRiesgo}">${registro.risk_level || 'Bajo'}</span></td>
-            <td>${registro.notes || '<em class="text-muted">Sin notas</em>'}</td>
-            <td>
-                <button class="btn btn-sm btn-outline-danger" onclick="gestorRegistros.eliminarRegistro('${registro.id}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
+      tr.innerHTML = `
+    <td><strong>${nombrePaciente}</strong></td>
+    <td>${fechaFormateada}</td>
+    <td><span class="badge bg-dark text-white">${registro.systolic}/${registro.diastolic}</span></td>
+    <td><span class="badge ${claseRiesgo}" style="color: #000000 !important; font-weight: bold;">${registro.risk_level || 'Bajo'}</span></td>
+    <td>${registro.notes || '<em class="text-muted">Sin notas</em>'}</td>
+    <td>
+        <button class="btn btn-sm btn-outline-danger" onclick="gestorRegistros.eliminarRegistro('${registro.id}')">
+            <i class="fas fa-trash"></i>
+        </button>
+    </td>
+`;
         tbody.appendChild(tr);
     });
 }
